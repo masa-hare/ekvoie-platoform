@@ -13,13 +13,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const translations = {
   en: {
     // Navigation
-    "nav.home": "Home",
-    "nav.opinions": "Opinions",
-    "nav.submit": "Submit Opinion",
-    "nav.analytics": "Analytics",
-    "nav.howItWorks": "How It Works",
     "nav.admin": "Admin",
-    "nav.login": "Login",
     
     // Home page
     "home.title": "Making Student Voices Visible",
@@ -31,15 +25,6 @@ const translations = {
     "home.howItWorks": "How It Works →",
     
     // Submit Opinion page
-    "submitOpinion.title": "Submit Your Opinion",
-    "submitOpinion.description": "Share your problem statement and solution proposal.",
-    "submitOpinion.problemLabel": "Problem Statement",
-    "submitOpinion.problemPlaceholder": "Describe the problem (when/where/who is affected)...",
-    "submitOpinion.solutionLabel": "Solution Proposal",
-    "submitOpinion.solutionPlaceholder": "Propose a solution that the university can implement...",
-    "submitOpinion.submit": "Submit Opinion",
-    "submitOpinion.submitting": "Submitting...",
-    "submitOpinion.success": "Opinion submitted successfully!",
     "submitOpinion.error": "Failed to submit opinion",
     "submitOpinion.fillAllFields": "Please fill in all fields",
     "submitOpinion.textTooLong": "Text exceeds 500 characters",
@@ -55,37 +40,19 @@ const translations = {
     "submit.yourSolution": "Your Proposed Solution",
     "submit.solutionNote": "Please describe a solution that the university can implement.",
     "submit.solutionExample": "Example: 'Introduce a pre-order system (morning deadline) for popular items instead of limited quantities.'",
-    "submit.placeholder": "Enter your solution here...",
     "submit.characters": "characters",
     "submit.submitButton": "Submit Opinion",
     "submit.submitting": "Submitting...",
-    "submit.success": "Opinion submitted successfully!",
-    "submit.error": "Failed to submit opinion",
-    "submit.errorEmpty": "Please enter your opinion",
     
     // Opinions page
     "opinions.title": "Opinions",
-    "opinions.filter": "Filter by Category",
     "opinions.all": "All",
     "opinions.noOpinions": "No opinions yet",
     "opinions.agree": "Agree",
     "opinions.disagree": "Disagree",
     "opinions.pass": "Pass",
-    "opinions.voted": "Voted",
     "opinions.voteSuccess": "Vote recorded!",
     "opinions.voteError": "Failed to vote",
-    
-    // Analytics page
-    "analytics.title": "Analytics",
-    "analytics.totalOpinions": "Total Opinions",
-    "analytics.totalVotes": "Total Votes",
-    "analytics.avgVotesPerOpinion": "Avg Votes/Opinion",
-    "analytics.categoryDistribution": "Category Distribution",
-    "analytics.voteDistribution": "Vote Distribution",
-    "analytics.recentActivity": "Recent Activity",
-    "analytics.topOpinions": "Top Opinions",
-    "analytics.opinionGroups": "Opinion Groups",
-    "analytics.opinions": "opinions",
     
     // How It Works page
     "howItWorks.title": "How It Works",
@@ -120,11 +87,8 @@ const translations = {
     "admin.totalOpinions": "Total Opinions",
     "admin.visible": "Visible",
     "admin.hidden": "Hidden",
-    "admin.allOpinions": "All Opinions",
-    "admin.noOpinions": "No opinions",
     "admin.hide": "Hide",
     "admin.show": "Show",
-    "admin.hiddenLabel": "Hidden",
     "admin.moderateSuccess": "Opinion visibility updated",
     "admin.moderateError": "Failed to moderate opinion",
     "admin.exportSuccess": "Data exported successfully",
@@ -143,13 +107,7 @@ const translations = {
   },
   ja: {
     // Navigation
-    "nav.home": "ホーム",
-    "nav.opinions": "意見一覧",
-    "nav.submit": "意見を投稿",
-    "nav.analytics": "分析",
-    "nav.howItWorks": "仕組み",
     "nav.admin": "管理者",
-    "nav.login": "ログイン",
     
     // Home page
     "home.title": "学生の声を、見える形に。",
@@ -161,15 +119,6 @@ const translations = {
     "home.howItWorks": "仕組みを見る →",
     
     // Submit Opinion page
-    "submitOpinion.title": "意見を投稿",
-    "submitOpinion.description": "問題文と解決策を共有してください。",
-    "submitOpinion.problemLabel": "問題文（トピック）",
-    "submitOpinion.problemPlaceholder": "いつ・どこで・誰が困るかを1文で記述...",
-    "submitOpinion.solutionLabel": "解決策の提案",
-    "submitOpinion.solutionPlaceholder": "大学が実行できる解決策を提案...",
-    "submitOpinion.submit": "投稿する",
-    "submitOpinion.submitting": "投稿中...",
-    "submitOpinion.success": "意見が投稿されました！",
     "submitOpinion.error": "投稿に失敗しました",
     "submitOpinion.fillAllFields": "すべてのフィールドを入力してください",
     "submitOpinion.textTooLong": "テキストが500文字を超えています",
@@ -185,37 +134,19 @@ const translations = {
     "submit.yourSolution": "あなたが考える解決策",
     "submit.solutionNote": "大学が実行できる解決策を記入してください。",
     "submit.solutionExample": "例：「人気メニューは数量限定ではなく、事前予約制（当日午前締切）を一部導入する。」",
-    "submit.placeholder": "ここに解決策を入力してください...",
     "submit.characters": "文字",
     "submit.submitButton": "意見を投稿",
     "submit.submitting": "送信中...",
-    "submit.success": "意見が投稿されました！",
-    "submit.error": "投稿に失敗しました",
-    "submit.errorEmpty": "意見を入力してください",
     
     // Opinions page
     "opinions.title": "意見一覧",
-    "opinions.filter": "カテゴリーで絞り込み",
     "opinions.all": "すべて",
     "opinions.noOpinions": "まだ意見がありません",
     "opinions.agree": "賛成",
     "opinions.disagree": "反対",
     "opinions.pass": "パス",
-    "opinions.voted": "投票済み",
     "opinions.voteSuccess": "投票を記録しました！",
     "opinions.voteError": "投票に失敗しました",
-    
-    // Analytics page
-    "analytics.title": "分析",
-    "analytics.totalOpinions": "総意見数",
-    "analytics.totalVotes": "総投票数",
-    "analytics.avgVotesPerOpinion": "意見あたりの平均投票数",
-    "analytics.categoryDistribution": "カテゴリー別分布",
-    "analytics.voteDistribution": "投票分布",
-    "analytics.recentActivity": "最近のアクティビティ",
-    "analytics.topOpinions": "人気の意見",
-    "analytics.opinionGroups": "意見グループ",
-    "analytics.opinions": "件の意見",
     
     // How It Works page
     "howItWorks.title": "仕組み",
@@ -250,11 +181,8 @@ const translations = {
     "admin.totalOpinions": "総意見数",
     "admin.visible": "表示中",
     "admin.hidden": "非表示",
-    "admin.allOpinions": "すべての意見",
-    "admin.noOpinions": "意見がありません",
     "admin.hide": "非表示",
     "admin.show": "表示",
-    "admin.hiddenLabel": "非表示",
     "admin.moderateSuccess": "意見の表示状態を更新しました",
     "admin.moderateError": "モデレーションに失敗しました",
     "admin.exportSuccess": "データをエクスポートしました",

@@ -1,6 +1,6 @@
 import { eq, desc, and, sql, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, opinions, votes, categories, anonymousUsers, opinionGroups, solutions, solutionVotes, deletionLogs, InsertOpinion, InsertVote, InsertCategory, InsertOpinionGroup, InsertSolution, InsertSolutionVote, InsertDeletionLog } from "../drizzle/schema";
+import { users, opinions, votes, categories, anonymousUsers, solutions, solutionVotes, deletionLogs, InsertOpinion, InsertVote, InsertSolution, InsertSolutionVote, InsertDeletionLog } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -16,61 +16,6 @@ export async function getDb() {
   return _db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
-}
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
@@ -198,35 +143,6 @@ export async function getCategories() {
   return await db.select().from(categories).orderBy(categories.name);
 }
 
-export async function getCategoryById(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
-  return result[0] || null;
-}
-
-export async function createCategory(category: InsertCategory) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db.insert(categories).values(category);
-}
-
-// Opinion Group queries
-export async function createOpinionGroup(group: InsertOpinionGroup) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db.insert(opinionGroups).values(group);
-}
-
-export async function getOpinionGroups() {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  return await db.select().from(opinionGroups).orderBy(desc(opinionGroups.createdAt));
-}
 
 // Delete opinion
 export async function deleteOpinion(opinionId: number) {
@@ -481,9 +397,3 @@ export async function createDeletionLog(log: InsertDeletionLog) {
   await db.insert(deletionLogs).values(log);
 }
 
-export async function getDeletionLogs() {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  return await db.select().from(deletionLogs).orderBy(desc(deletionLogs.deletedAt));
-}
