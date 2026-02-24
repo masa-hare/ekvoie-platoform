@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1770190263063,
+      "tag": "0000_aromatic_wallow",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1770190383095,
+      "tag": "0001_happy_roulette",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1770191408739,
+      "tag": "0002_fantastic_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1770191594331,
+      "tag": "0003_cooing_lyja",
+      "breakpoints": true
+    }
+  ]
+}

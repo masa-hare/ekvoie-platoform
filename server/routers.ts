@@ -1,0 +1,530 @@
+import { COOKIE_NAME } from "@shared/const";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { adminProcedure, publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { z } from "zod";
+import * as db from "./db";
+import { getOrCreateAnonymousUser } from "./anonymousAuth";
+
+import { TRPCError } from "@trpc/server";
+import { notifyOwner } from "./_core/notification";
+
+import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
+import { broadcastOpinionChange } from "./sse";
+import { detectPII } from "./piiDetection";
+import { sanitizeInput } from "./security";
+
+// 通知クールダウン管理: opinionId → lastNotifiedAt (ミリ秒)
+const notificationCooldowns = new Map<number, number>();
+const COOLDOWN_MS = 10 * 60 * 1000; // 10分
+
+export const appRouter = router({
+  system: systemRouter,
+  auth: router({
+    me: publicProcedure.query(opts => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return {
+        success: true,
+      } as const;
+    }),
+  }),
+
+  opinions: router({
+    // Get all categories
+    getCategories: publicProcedure.query(async () => {
+      return await db.getCategories();
+    }),
+
+    // Create a new opinion with text input
+    createTextOpinion: publicProcedure
+      .input(
+        z.object({
+          problemStatement: z.string().min(1).max(500),
+          solutionProposal: z.string().min(1).max(500),
+          categoryId: z.number().int().positive().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Apply rate limiting (skip in test environment)
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve, reject) => {
+            opinionSubmitLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
+              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many submissions. Please wait 1 minute before submitting again." }));
+              else resolve();
+            });
+          });
+        }
+
+        // Get or create anonymous user
+        const anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
+
+        // Strip HTML tags before PII detection and storage
+        const cleanProblem = sanitizeInput(input.problemStatement);
+        const cleanSolution = sanitizeInput(input.solutionProposal);
+
+        // Detect PII in problem statement and solution proposal
+        const problemPII = detectPII(cleanProblem);
+        const solutionPII = detectPII(cleanSolution);
+
+        // If PII is detected, automatically set to pending and use masked text
+        const hasPII = problemPII.hasPII || solutionPII.hasPII;
+        const approvalStatus = hasPII ? "pending" : "pending"; // Always pending for moderation
+
+        // Create opinion with masked text if PII detected
+        const opinion = await db.createOpinion({
+          problemStatement: problemPII.hasPII ? problemPII.maskedText : cleanProblem,
+          transcription: solutionPII.hasPII ? solutionPII.maskedText : cleanSolution,
+          categoryId: input.categoryId,
+          anonymousUserId: anonymousUserId,
+          approvalStatus,
+        });
+
+        // If PII detected, notify owner
+        if (hasPII) {
+          const allTypes = [...problemPII.detectedTypes, ...solutionPII.detectedTypes];
+          const detectedTypes = Array.from(new Set(allTypes));
+          const opinionId = Number(opinion.insertId);
+          await notifyOwner({
+            title: "個人情報を含む投稿が検出されました",
+            content: `意見ID: ${opinionId}\n検出された個人情報: ${detectedTypes.join(", ")}\n\n投稿内容は自動的にマスクされ、承認待ちになりました。`,
+          });
+        }
+
+        return opinion;
+      }),
+
+    // Get all opinions with filters (only approved ones for public)
+    list: publicProcedure
+      .input(
+        z.object({
+          categoryId: z.number().optional(),
+          userId: z.number().optional(),
+        }).optional()
+      )
+      .query(async ({ input }) => {
+        return await db.getOpinions({
+          categoryId: input?.categoryId,
+          userId: input?.userId,
+          isVisible: true,
+          approvalStatus: "approved",
+        });
+      }),
+
+    // Get single opinion by ID
+    getById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const opinion = await db.getOpinionById(input.id);
+        if (!opinion || opinion.approvalStatus !== "approved" || !opinion.isVisible) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Opinion not found",
+          });
+        }
+        return opinion;
+      }),
+
+    // Vote on an opinion (allow anonymous)
+    vote: publicProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+          voteType: z.enum(["agree", "disagree", "pass"]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Apply rate limiting (skip in test environment)
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve, reject) => {
+            voteLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
+              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many votes. Please slow down." }));
+              else resolve();
+            });
+          });
+        }
+
+        const userId = ctx.user?.id || null;
+        
+        // Get or create anonymous user ID for voting (only creates on vote action)
+        let anonymousUserId = ctx.anonymousUserId;
+        if (!userId && !anonymousUserId) {
+          anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
+        }
+
+        // Check if user already voted
+        let existingVote = null;
+        if (userId) {
+          // For logged-in users, check by userId
+          existingVote = await db.getUserVote(userId, input.opinionId);
+        } else if (anonymousUserId) {
+          // For anonymous users, check by anonymousUserId
+          existingVote = await db.getAnonymousUserVote(anonymousUserId, input.opinionId);
+        }
+
+        if (existingVote) {
+          // Update existing vote
+          await db.updateVote(existingVote.id, input.voteType);
+        } else {
+          // Create new vote
+          await db.createVote({
+            userId,
+            anonymousUserId,
+            opinionId: input.opinionId,
+            voteType: input.voteType,
+          });
+        }
+
+        // Update opinion counts
+        await db.updateOpinionCounts(input.opinionId);
+
+        // Get updated opinion with latest counts
+        const opinion = await db.getOpinionById(input.opinionId);
+        if (!opinion) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Opinion not found" });
+        }
+        const totalVotes = opinion.agreeCount + opinion.disagreeCount + opinion.passCount;
+        
+        // 通知条件: 承認済みの意見のみ、かつクールダウン中でない場合
+        if (totalVotes === 10 || totalVotes === 50 || totalVotes === 100) {
+          // 承認済みの意見のみ通知
+          if (opinion.approvalStatus === "approved") {
+            const now = Date.now();
+            const lastNotified = notificationCooldowns.get(input.opinionId) || 0;
+            
+            // クールダウンチェック (10分)
+            if (now - lastNotified >= COOLDOWN_MS) {
+              await notifyOwner({
+                title: `意見 #${input.opinionId} が${totalVotes}票に達しました`,
+                content: `賛成: ${opinion.agreeCount}, 反対: ${opinion.disagreeCount}, パス: ${opinion.passCount}`,
+              });
+              notificationCooldowns.set(input.opinionId, now);
+            }
+          }
+        }
+
+        return { 
+          success: true,
+          counts: {
+            agreeCount: opinion.agreeCount,
+            disagreeCount: opinion.disagreeCount,
+            passCount: opinion.passCount,
+          }
+        };
+      }),
+
+    // Get user's vote for an opinion
+    getUserVote: protectedProcedure
+      .input(z.object({ opinionId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getUserVote(ctx.user.id, input.opinionId);
+      }),
+  }),
+
+  analytics: router({
+    getStats: publicProcedure.query(async () => {
+      return await db.getAnalyticsStats();
+    }),
+  }),
+
+  // Admin procedures
+  admin: router({
+    // Get all opinions including hidden ones
+    getAllOpinions: adminProcedure.query(async () => {
+      return await db.getOpinions({});
+    }),
+
+    // Moderate opinion (hide/show)
+    moderateOpinion: adminProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+          isVisible: z.boolean(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateOpinion(input.opinionId, {
+          isVisible: input.isVisible,
+          isModerated: true,
+        });
+        broadcastOpinionChange();
+        return { success: true };
+      }),
+
+    // Get pending solutions (admin only)
+    getPendingSolutions: adminProcedure.query(async () => {
+      return await db.getPendingSolutions();
+    }),
+
+    // Approve opinion (admin only)
+    approveOpinion: adminProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateOpinion(input.opinionId, {
+          approvalStatus: "approved",
+        });
+        broadcastOpinionChange();
+        return { success: true };
+      }),
+
+    // Reject opinion (admin only)
+    rejectOpinion: adminProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateOpinion(input.opinionId, {
+          approvalStatus: "rejected",
+        });
+        broadcastOpinionChange();
+        return { success: true };
+      }),
+
+    // Delete opinion (admin only)
+    deleteOpinion: adminProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // 削除前に意見内容を取得
+        const opinion = await db.getOpinionById(input.opinionId);
+        if (!opinion) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Opinion not found",
+          });
+        }
+
+        await db.createDeletionLog({
+          postType: "opinion",
+          postId: input.opinionId,
+          content: JSON.stringify({
+            problemStatement: opinion.problemStatement,
+            transcription: opinion.transcription,
+            language: opinion.language,
+            categoryId: opinion.categoryId,
+          }),
+          reason: input.reason || null,
+          deletedBy: ctx.user.id,
+        });
+
+        await db.deleteOpinion(input.opinionId);
+        broadcastOpinionChange();
+        return { success: true };
+      }),
+
+    // Export opinions to CSV (admin only)
+    exportOpinions: adminProcedure
+      .query(async () => {
+        const opinions = await db.getOpinions();
+        const categories = await db.getCategories();
+        const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
+        // Generate CSV content
+        const headers = ["ID", "問題文", "カテゴリー", "賛成数", "反対数", "パス数", "賛成率(%)", "作成日時"];
+        const rows = opinions.map(opinion => {
+          const total = opinion.agreeCount + opinion.disagreeCount + opinion.passCount;
+          const agreeRate = total > 0 ? ((opinion.agreeCount / total) * 100).toFixed(1) : "0.0";
+          const categoryName = opinion.categoryId ? categoryMap.get(opinion.categoryId) || "未分類" : "未分類";
+          
+          const problemText = (opinion.problemStatement || "").replace(/\r?\n/g, " ");
+          const csvEscape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+          return [
+            opinion.id.toString(),
+            csvEscape(problemText),
+            csvEscape(categoryName),
+            opinion.agreeCount.toString(),
+            opinion.disagreeCount.toString(),
+            opinion.passCount.toString(),
+            agreeRate,
+            new Date(opinion.createdAt).toISOString().split('T')[0]
+          ];
+        });
+
+        const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+        return { csv };
+      }),
+  }),
+
+  solutions: router({
+    // Create a new solution proposal
+    create: publicProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+          title: z.string().min(10).max(200),
+          description: z.string().min(10).max(5000),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Get or create anonymous user ID for solution creation (only creates on create action)
+        let anonymousUserId = ctx.anonymousUserId;
+        if (!anonymousUserId) {
+          anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
+        }
+
+        // Strip HTML tags before PII detection and storage
+        const cleanTitle = sanitizeInput(input.title);
+        const cleanDescription = sanitizeInput(input.description);
+
+        // Detect PII in title and description
+        const titlePII = detectPII(cleanTitle);
+        const descriptionPII = detectPII(cleanDescription);
+        const hasPII = titlePII.hasPII || descriptionPII.hasPII;
+
+        await db.createSolution({
+          opinionId: input.opinionId,
+          title: titlePII.hasPII ? titlePII.maskedText : cleanTitle,
+          description: descriptionPII.hasPII ? descriptionPII.maskedText : cleanDescription,
+          anonymousUserId,
+          approvalStatus: "pending",
+        });
+
+        if (hasPII) {
+          const allTypes = [...titlePII.detectedTypes, ...descriptionPII.detectedTypes];
+          const detectedTypes = Array.from(new Set(allTypes));
+          await notifyOwner({
+            title: "解決策に個人情報が検出されました",
+            content: `検出された個人情報: ${detectedTypes.join(", ")}\n\n投稿内容は自動的にマスクされ、承認待ちになりました。`,
+          });
+        }
+
+        return { success: true };
+      }),
+
+    // Get solutions for an opinion
+    getByOpinionId: publicProcedure
+      .input(
+        z.object({
+          opinionId: z.number(),
+        })
+      )
+      .query(async ({ input }) => {
+        return await db.getSolutionsByOpinionId(input.opinionId);
+      }),
+
+    // Vote on a solution
+    vote: publicProcedure
+      .input(
+        z.object({
+          solutionId: z.number(),
+          voteType: z.enum(["support", "oppose", "pass"]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Apply rate limiting (skip in test environment)
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve, reject) => {
+            voteLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
+              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many votes. Please slow down." }));
+              else resolve();
+            });
+          });
+        }
+
+        // Get or create anonymous user ID for solution voting (only creates on vote action)
+        let anonymousUserId = ctx.anonymousUserId;
+        if (!anonymousUserId) {
+          anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
+        }
+
+        // Check if user has already voted
+        const existingVote = await db.getSolutionVoteByUserAndSolution(
+          anonymousUserId,
+          input.solutionId
+        );
+
+        if (existingVote) {
+          // Update existing vote
+          await db.updateSolutionVote(existingVote.id, input.voteType);
+        } else {
+          // Create new vote
+          await db.createSolutionVote({
+            solutionId: input.solutionId,
+            anonymousUserId,
+            voteType: input.voteType,
+          });
+        }
+
+        // Update vote counts
+        await db.updateSolutionVoteCount(input.solutionId);
+
+        return { success: true };
+      }),
+
+    // Approve solution (admin only)
+    approve: adminProcedure
+      .input(
+        z.object({
+          solutionId: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateSolution(input.solutionId, {
+          approvalStatus: "approved",
+        });
+
+        return { success: true };
+      }),
+
+    // Reject solution (admin only)
+    reject: adminProcedure
+      .input(
+        z.object({
+          solutionId: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateSolution(input.solutionId, {
+          approvalStatus: "rejected",
+        });
+
+        return { success: true };
+      }),
+
+    // Delete solution (admin only)
+    delete: adminProcedure
+      .input(
+        z.object({
+          solutionId: z.number(),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // 削除前に解決策内容を取得
+        const solution = await db.getSolutionById(input.solutionId);
+        if (!solution) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Solution not found",
+          });
+        }
+
+        await db.createDeletionLog({
+          postType: "solution",
+          postId: input.solutionId,
+          content: JSON.stringify({
+            opinionId: solution.opinionId,
+            description: solution.description,
+          }),
+          reason: input.reason || null,
+          deletedBy: ctx.user.id,
+        });
+
+        await db.deleteSolution(input.solutionId);
+        return { success: true };
+      }),
+  }),
+});
+
+export type AppRouter = typeof appRouter;

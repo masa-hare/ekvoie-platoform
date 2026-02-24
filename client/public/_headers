@@ -1,0 +1,5 @@
+# X-Robots-Tag header for all pages
+# Prevents search engines from indexing this site
+
+/*
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
