@@ -56,6 +56,15 @@ export default function About() {
         content2:
           "掲載内容や投票結果は、大学の方針や決定を示すものではありません。",
       },
+      opensource: {
+        heading: "オープンソースについて",
+        content1:
+          "本サイトのコードはオープンソースとして公開しています。他大学や団体が同様の学生意見可視化プラットフォームを構築・運用する際に、自由にご活用いただけます。",
+        content2:
+          "導入を検討されている方、カスタマイズや共同開発に興味のある方は、お気軽にご連絡ください。",
+        github: "ソースコードを見る（GitHub）",
+        githubUrl: "https://github.com/masa-hare/ekvoie-platoform",
+      },
       appeals: {
         heading: "非表示・削除に対する異議申し立て",
         content:
@@ -118,6 +127,15 @@ export default function About() {
           "This site is not an official decision-making body of the university.",
         content2:
           "The content and voting results posted on this site do not represent the university's policies or decisions.",
+      },
+      opensource: {
+        heading: "Open Source",
+        content1:
+          "The source code of this site is publicly available as open source. Other universities and organizations are welcome to use or adapt it to build their own student voice platforms.",
+        content2:
+          "If you're interested in deploying it, customizing it, or collaborating on development, feel free to get in touch.",
+        github: "View Source Code (GitHub)",
+        githubUrl: "https://github.com/masa-hare/ekvoie-platoform",
       },
       appeals: {
         heading: "Appeals for Hidden or Deleted Posts",
@@ -239,6 +257,32 @@ export default function About() {
               <p className="text-gray-700 leading-relaxed">
                 {text.disclaimer.content2}
               </p>
+            </div>
+          </section>
+
+          {/* オープンソース */}
+          <section className="bg-white rounded-lg p-6 shadow-sm border-2 border-black">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+              {text.opensource.heading}
+            </h2>
+            <div className="space-y-3">
+              <p className="text-gray-700 leading-relaxed">
+                {text.opensource.content1}
+              </p>
+              <p className="text-gray-700 leading-relaxed">
+                {text.opensource.content2}
+              </p>
+              <a
+                href={text.opensource.githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-2 font-semibold text-gray-900 hover:underline"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                {text.opensource.github}
+              </a>
             </div>
           </section>
 
