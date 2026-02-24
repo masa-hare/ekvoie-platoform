@@ -7,16 +7,10 @@ import * as db from "./db";
 import { getOrCreateAnonymousUser } from "./anonymousAuth";
 
 import { TRPCError } from "@trpc/server";
-import { notifyOwner } from "./_core/notification";
 
 import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
 import { broadcastOpinionChange } from "./sse";
-import { detectPII } from "./piiDetection";
 import { sanitizeInput } from "./security";
-
-// 通知クールダウン管理: opinionId → lastNotifiedAt (ミリ秒)
-const notificationCooldowns = new Map<number, number>();
-const COOLDOWN_MS = 10 * 60 * 1000; // 10分
 
 export const appRouter = router({
   system: systemRouter,
@@ -60,37 +54,18 @@ export const appRouter = router({
         // Get or create anonymous user
         const anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
 
-        // Strip HTML tags before PII detection and storage
+        // Strip HTML tags before storage
         const cleanProblem = sanitizeInput(input.problemStatement);
         const cleanSolution = sanitizeInput(input.solutionProposal);
 
-        // Detect PII in problem statement and solution proposal
-        const problemPII = detectPII(cleanProblem);
-        const solutionPII = detectPII(cleanSolution);
-
-        // If PII is detected, automatically set to pending and use masked text
-        const hasPII = problemPII.hasPII || solutionPII.hasPII;
-        const approvalStatus = hasPII ? "pending" : "pending"; // Always pending for moderation
-
-        // Create opinion with masked text if PII detected
+        // Create opinion (always pending for moderation)
         const opinion = await db.createOpinion({
-          problemStatement: problemPII.hasPII ? problemPII.maskedText : cleanProblem,
-          transcription: solutionPII.hasPII ? solutionPII.maskedText : cleanSolution,
+          problemStatement: cleanProblem,
+          transcription: cleanSolution,
           categoryId: input.categoryId,
           anonymousUserId: anonymousUserId,
-          approvalStatus,
+          approvalStatus: "pending",
         });
-
-        // If PII detected, notify owner
-        if (hasPII) {
-          const allTypes = [...problemPII.detectedTypes, ...solutionPII.detectedTypes];
-          const detectedTypes = Array.from(new Set(allTypes));
-          const opinionId = Number(opinion.insertId);
-          await notifyOwner({
-            title: "個人情報を含む投稿が検出されました",
-            content: `意見ID: ${opinionId}\n検出された個人情報: ${detectedTypes.join(", ")}\n\n投稿内容は自動的にマスクされ、承認待ちになりました。`,
-          });
-        }
 
         return opinion;
       }),
@@ -186,25 +161,7 @@ export const appRouter = router({
         }
         const totalVotes = opinion.agreeCount + opinion.disagreeCount + opinion.passCount;
         
-        // 通知条件: 承認済みの意見のみ、かつクールダウン中でない場合
-        if (totalVotes === 10 || totalVotes === 50 || totalVotes === 100) {
-          // 承認済みの意見のみ通知
-          if (opinion.approvalStatus === "approved") {
-            const now = Date.now();
-            const lastNotified = notificationCooldowns.get(input.opinionId) || 0;
-            
-            // クールダウンチェック (10分)
-            if (now - lastNotified >= COOLDOWN_MS) {
-              await notifyOwner({
-                title: `意見 #${input.opinionId} が${totalVotes}票に達しました`,
-                content: `賛成: ${opinion.agreeCount}, 反対: ${opinion.disagreeCount}, パス: ${opinion.passCount}`,
-              });
-              notificationCooldowns.set(input.opinionId, now);
-            }
-          }
-        }
-
-        return { 
+        return {
           success: true,
           counts: {
             agreeCount: opinion.agreeCount,

@@ -226,7 +226,7 @@ export default function Opinions() {
               </div>
             )}
             <div className="text-xs sm:text-sm font-bold text-muted-foreground">
-              #{opinion.id} · {new Date(opinion.createdAt).toLocaleDateString("ja-JP")}
+              #{opinion.id} · {new Date(opinion.createdAt).toLocaleDateString(language === "ja" ? "ja-JP" : "en-US")}
             </div>
           </div>
           {opinion.categoryId && (
@@ -361,9 +361,9 @@ export default function Opinions() {
 
           {/* Filters */}
           {viewMode === "list" && (
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="brutalist-border font-bold w-48">
+                <SelectTrigger className="brutalist-border font-bold w-full sm:w-44">
                   <SelectValue placeholder={t("opinions.all")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -377,7 +377,7 @@ export default function Opinions() {
               </Select>
 
               <Select value={sortType} onValueChange={(v) => setSortType(v as SortType)}>
-                <SelectTrigger className="brutalist-border font-bold w-48">
+                <SelectTrigger className="brutalist-border font-bold w-full sm:w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -392,7 +392,7 @@ export default function Opinions() {
       </header>
 
       {/* Main content */}
-      <main className="container py-8">
+      <main className="container py-6 sm:py-8 px-4">
         {viewMode === "list" ? (
           // List view
           <>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Lightbulb, ChevronDown, ChevronUp, Crown, Flag } from "lucide-react";
+import { ArrowLeft, Send, Lightbulb, ChevronDown, ChevronUp, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useOpinionEvents } from "@/hooks/useOpinionEvents";
@@ -507,16 +507,6 @@ export default function OpinionDetail() {
           </div>
         </motion.div>
 
-        {/* Report link */}
-        <div className="mt-6 text-center">
-          <a
-            href={`mailto:ekvoice0@gmail.com?subject=${encodeURIComponent("不適切な投稿の報告 / Report: Opinion #" + opinionId)}&body=${encodeURIComponent(ja ? "意見ID: " + opinionId + "\n報告理由:\n" : "Opinion ID: " + opinionId + "\nReason for report:\n")}`}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-red-600 transition-colors"
-          >
-            <Flag className="w-3 h-3" />
-            {ja ? "この意見を報告する" : "Report this opinion"}
-          </a>
-        </div>
       </main>
     </div>
   );

@@ -23,7 +23,7 @@ export default function Home() {
   const isAdmin = user?.role === "admin";
 
   return (
-    <div className="min-h-[100dvh] bg-white relative">
+    <div className="min-h-[100dvh] bg-white relative overflow-hidden">
       {/* Language switcher and admin access in top right corner */}
       <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10 flex items-center gap-2 md:gap-4">
         <LanguageSwitcher />

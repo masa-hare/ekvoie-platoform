@@ -21,12 +21,6 @@ export default function About() {
         content2:
           "投稿は原則、管理者承認後に公開されます。",
         content3:
-          "ただし、以下の場合に限り、運用上必要な情報が外部サービスに送信されます：",
-        content4:
-          "1. 個人情報検出：投稿に個人情報（氏名、電話番号、メールアドレス、SNS ID、住所等）が含まれていないかを自動チェックします。検出された場合、該当部分はマスクされ、管理者に通知されます。この検出処理はサーバー内で完結し、投稿本文そのものは外部AIに送信されません。",
-        content5:
-          "2. 運営通知：個人情報を含む投稿が検出された場合、運営者に通知が送信されます。通知には投稿IDや検出種別などの運用情報が含まれますが、投稿本文や個人情報そのものは外部通知サービスに送信されません。",
-        content6:
           "なお、本サイトの開発・保守の過程においては、開発者がコード作成や修正の補助としてAIツールを利用する場合がありますが、利用者の投稿データが開発用AIに送信されることはありません。",
       },
       prohibited: {
@@ -90,12 +84,6 @@ export default function About() {
         content2:
           "Posts are generally published after administrator approval.",
         content3:
-          "However, in the following limited cases, operationally necessary information may be sent to external services:",
-        content4:
-          "1. Personal Information Detection: Posts are automatically checked for personal information (names, phone numbers, email addresses, SNS IDs, addresses, etc.). If detected, the relevant portions are masked and administrators are notified. This detection process is completed within the server, and the post content itself is not sent to external AI.",
-        content5:
-          "2. Administrative Notifications: When posts containing personal information are detected, notifications are sent to administrators. These notifications include operational information such as post IDs and detection types, but the post content or personal information itself is not sent to external notification services.",
-        content6:
           "During the development and maintenance of this site, developers may use AI tools to assist with code creation and modification, but user-posted data is never sent to development AI systems.",
       },
       prohibited: {
@@ -192,15 +180,6 @@ export default function About() {
               </p>
               <p className="text-gray-700 leading-relaxed">
                 {text.ai.content3}
-              </p>
-              <p className="text-gray-700 leading-relaxed">
-                {text.ai.content4}
-              </p>
-              <p className="text-gray-700 leading-relaxed">
-                {text.ai.content5}
-              </p>
-              <p className="text-gray-700 leading-relaxed">
-                {text.ai.content6}
               </p>
             </div>
           </section>
