@@ -6,7 +6,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function HowItWorks() {
   const [, setLocation] = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const ja = language === "ja";
 
   const steps = [
     {
@@ -127,21 +128,21 @@ export default function HowItWorks() {
             <h2 className="text-3xl sm:text-5xl font-black uppercase">READY TO START?</h2>
           </div>
           <p className="text-base sm:text-xl font-semibold mb-6 md:mb-8 max-w-2xl mx-auto">
-            あなたの声を構造化し、大学を変える力に変えましょう。
+            {ja ? "あなたの声を構造化し、大学を変える力に変えましょう。" : "Structure your voice and turn it into a force for change at your university."}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               onClick={() => setLocation("/submit")}
               className="brutalist-border-thick font-black uppercase px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg bg-black text-white hover:bg-black/90"
             >
-              問題を投稿する
+              {ja ? "問題を投稿する" : "Post a Problem"}
             </Button>
             <Button
               onClick={() => setLocation("/opinions")}
               variant="outline"
               className="brutalist-border-thick font-black uppercase px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg"
             >
-              意見を見る
+              {ja ? "意見を見る" : "View Opinions"}
             </Button>
           </div>
         </motion.div>

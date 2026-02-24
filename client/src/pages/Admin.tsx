@@ -21,7 +21,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 export default function Admin() {
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const ja = language === "ja";
 
   const { data: opinions, refetch } = trpc.admin.getAllOpinions.useQuery();
   const { data: pendingSolutions, refetch: refetchSolutions } = trpc.admin.getPendingSolutions.useQuery();
@@ -96,22 +97,22 @@ export default function Admin() {
   const handleApproveSolution = async (solutionId: number) => {
     try {
       await approveSolutionMutation.mutateAsync({ solutionId });
-      toast.success("解決策を承認しました");
+      toast.success(ja ? "解決策を承認しました" : "Solution approved");
       refetchSolutions();
     } catch (error) {
       console.error("Approve solution error:", error);
-      toast.error("解決策の承認に失敗しました");
+      toast.error(ja ? "解決策の承認に失敗しました" : "Failed to approve solution");
     }
   };
 
   const handleRejectSolution = async (solutionId: number) => {
     try {
       await rejectSolutionMutation.mutateAsync({ solutionId });
-      toast.success("解決策を非公開にしました");
+      toast.success(ja ? "解決策を非公開にしました" : "Solution hidden");
       refetchSolutions();
     } catch (error) {
       console.error("Reject solution error:", error);
-      toast.error("解決策の非公開に失敗しました");
+      toast.error(ja ? "解決策の非公開に失敗しました" : "Failed to hide solution");
     }
   };
   
@@ -121,7 +122,7 @@ export default function Admin() {
     try {
       const result = await exportQuery.refetch();
       if (!result.data) {
-        toast.error("エクスポートに失敗しました");
+        toast.error(ja ? "エクスポートに失敗しました" : "Export failed");
         return;
       }
 
@@ -134,7 +135,7 @@ export default function Admin() {
       toast.success(t("admin.exportSuccess"));
     } catch (error) {
       console.error("Export error:", error);
-      toast.error("エクスポートに失敗しました");
+      toast.error(ja ? "エクスポートに失敗しました" : "Export failed");
     }
   };
 
@@ -218,7 +219,7 @@ export default function Admin() {
         {pendingSolutions && pendingSolutions.length > 0 && (
           <div className="brutalist-border-thick p-4 sm:p-8 mb-6 md:mb-12">
             <div className="brutalist-underline inline-block mb-6 sm:mb-8">
-              <h3 className="text-xl sm:text-3xl font-black uppercase">未承認の解決策</h3>
+              <h3 className="text-xl sm:text-3xl font-black uppercase">{ja ? "未承認の解決策" : "Pending Solutions"}</h3>
             </div>
             <div className="space-y-6">
               {pendingSolutions.map((solution: any) => (
@@ -230,11 +231,11 @@ export default function Admin() {
                     <div className="flex items-start gap-3 flex-1">
                       <div className="flex-1">
                         <div className="text-xs sm:text-sm font-bold text-muted-foreground mb-2">
-                          #{solution.id} · 意見ID: {solution.opinionId} ·{" "}
-                          {new Date(solution.createdAt).toLocaleDateString("ja-JP")}
+                          #{solution.id} · {ja ? "意見ID" : "Opinion"}: {solution.opinionId} ·{" "}
+                          {new Date(solution.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
                         </div>
                         <div className="inline-block px-3 py-1 bg-yellow-500 text-black font-bold text-sm mb-3">
-                          承認待ち
+                          {ja ? "承認待ち" : "Pending"}
                         </div>
                       </div>
                     </div>
@@ -245,7 +246,7 @@ export default function Admin() {
                         size="sm"
                       >
                         <Check className="w-4 h-4 mr-1" />
-                        承認
+                        {ja ? "承認" : "Approve"}
                       </Button>
                       <Button
                         onClick={() => handleRejectSolution(solution.id)}
@@ -253,7 +254,7 @@ export default function Admin() {
                         size="sm"
                       >
                         <X className="w-4 h-4 mr-1" />
-                        非公開
+                        {ja ? "非公開" : "Hide"}
                       </Button>
                     </div>
                   </div>
@@ -270,12 +271,12 @@ export default function Admin() {
         {/* Opinions list */}
         <div className="brutalist-border-thick p-4 sm:p-8">
           <div className="brutalist-underline inline-block mb-6 sm:mb-8">
-            <h3 className="text-xl sm:text-3xl font-black uppercase">All Opinions</h3>
+            <h3 className="text-xl sm:text-3xl font-black uppercase">{ja ? "すべての意見" : "All Opinions"}</h3>
           </div>
 
           {!opinions || opinions.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-xl font-semibold">意見がありません</p>
+              <p className="text-xl font-semibold">{ja ? "意見がありません" : "No opinions yet"}</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -288,28 +289,28 @@ export default function Admin() {
                     <div className="flex items-start gap-3 flex-1">
                       <div className="flex-1">
                         <div className="text-xs sm:text-sm font-bold text-muted-foreground mb-2">
-                          #{opinion.id} · {opinion.userId ? `User ${opinion.userId}` : "匿名"} ·{" "}
-                          {new Date(opinion.createdAt).toLocaleDateString("ja-JP")}
+                          #{opinion.id} · {opinion.userId ? `User ${opinion.userId}` : (ja ? "匿名" : "Anonymous")} ·{" "}
+                          {new Date(opinion.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
                         </div>
                         <div className="flex gap-2">
                         {!opinion.isVisible && (
                           <div className="inline-block px-3 py-1 bg-black text-white font-bold text-sm">
-                            非表示
+                            {ja ? "非表示" : "Hidden"}
                           </div>
                         )}
                         {opinion.approvalStatus === "pending" && (
                           <div className="inline-block px-3 py-1 bg-yellow-500 text-black font-bold text-sm">
-                            承認待ち
+                            {ja ? "承認待ち" : "Pending"}
                           </div>
                         )}
                         {opinion.approvalStatus === "approved" && (
                           <div className="inline-block px-3 py-1 bg-green-500 text-white font-bold text-sm">
-                            承認済み
+                            {ja ? "承認済み" : "Approved"}
                           </div>
                         )}
                         {opinion.approvalStatus === "rejected" && (
                           <div className="inline-block px-3 py-1 bg-red-500 text-white font-bold text-sm">
-                            却下
+                            {ja ? "却下" : "Rejected"}
                           </div>
                         )}
                         </div>
@@ -325,7 +326,7 @@ export default function Admin() {
                             size="sm"
                           >
                             <Check className="w-4 h-4 mr-1" />
-                            承認
+                            {ja ? "承認" : "Approve"}
                           </Button>
                           <Button
                             onClick={() => handleReject(opinion.id)}
@@ -334,7 +335,7 @@ export default function Admin() {
                             size="sm"
                           >
                             <X className="w-4 h-4 mr-1" />
-                            却下
+                            {ja ? "却下" : "Reject"}
                           </Button>
                         </>
                       )}
@@ -371,21 +372,21 @@ export default function Admin() {
                   {/* Problem Statement (Topic) */}
                   {opinion.problemStatement && (
                     <div className="mb-3">
-                      <span className="text-xs font-bold text-muted-foreground uppercase">トピック（問題文）</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase">{ja ? "トピック（問題文）" : "Topic (Problem)"}</span>
                       <p className="text-base sm:text-lg font-bold mt-1">{opinion.problemStatement}</p>
                     </div>
                   )}
                   
                   {/* Solution */}
                   <div className="mb-4">
-                    <span className="text-xs font-bold text-muted-foreground uppercase">解決策</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase">{ja ? "解決策" : "Solution"}</span>
                     <p className="text-base sm:text-lg font-semibold mt-1">{opinion.transcription}</p>
                   </div>
 
                   <div className="flex gap-6 text-sm font-bold">
-                    <span>賛成: {opinion.agreeCount}</span>
-                    <span>反対: {opinion.disagreeCount}</span>
-                    <span>パス: {opinion.passCount}</span>
+                    <span>{ja ? "賛成" : "Agree"}: {opinion.agreeCount}</span>
+                    <span>{ja ? "反対" : "Disagree"}: {opinion.disagreeCount}</span>
+                    <span>{ja ? "パス" : "Pass"}: {opinion.passCount}</span>
                   </div>
                 </div>
               ))}

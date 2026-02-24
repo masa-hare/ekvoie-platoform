@@ -189,7 +189,7 @@ export default function SubmitOpinion() {
                   </p>
                   <p className="text-sm sm:text-base font-bold text-red-900 mt-2">
                     <Link href="/about" className="underline hover:text-red-700 transition-colors">
-                      {t("language") === "ja" ? "詳しくは「サイトについて」をご覧ください" : "See 'About' for details"}
+                      {language === "ja" ? "詳しくは「サイトについて」をご覧ください" : "See 'About' for details"}
                     </Link>
                   </p>
                 </div>
@@ -230,7 +230,7 @@ export default function SubmitOpinion() {
                   className="brutalist-border font-semibold min-h-[80px] sm:min-h-[100px] text-base sm:text-lg resize-none"
                 />
                 <div className="text-xs sm:text-sm font-bold text-muted-foreground mt-1">
-                  任意：大学が実行できる解決策を提案しやすくなります
+                  {language === "ja" ? "任意：大学が実行できる解決策を提案しやすくなります" : "Optional: helps proposers suggest actionable solutions."}
                 </div>
               </div>
 

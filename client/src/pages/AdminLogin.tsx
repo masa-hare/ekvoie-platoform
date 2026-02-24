@@ -3,9 +3,12 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
+  const { language } = useLanguage();
+  const ja = language === "ja";
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,15 +26,15 @@ export default function AdminLogin() {
       });
 
       if (res.ok) {
-        toast.success("ログインしました");
+        toast.success(ja ? "ログインしました" : "Logged in successfully");
         // Force reload to refresh auth state
         window.location.href = "/admin";
       } else {
-        toast.error("パスワードが正しくありません");
+        toast.error(ja ? "パスワードが正しくありません" : "Incorrect password");
         setPassword("");
       }
     } catch {
-      toast.error("ログインに失敗しました");
+      toast.error(ja ? "ログインに失敗しました" : "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -43,13 +46,13 @@ export default function AdminLogin() {
         <div className="brutalist-border-thick p-8">
           <div className="flex items-center gap-3 mb-8">
             <Lock className="w-6 h-6" />
-            <h1 className="text-2xl font-black uppercase">管理者ログイン</h1>
+            <h1 className="text-2xl font-black uppercase">{ja ? "管理者ログイン" : "Admin Login"}</h1>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-bold mb-2 uppercase">
-                パスワード
+                {ja ? "パスワード" : "Password"}
               </label>
               <input
                 type="password"
