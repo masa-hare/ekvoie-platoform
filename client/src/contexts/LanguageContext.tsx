@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { siteConfig } from "@/siteConfig";
 
 type Language = "en" | "ja";
 
@@ -18,7 +19,7 @@ const translations = {
     // Home page
     "home.title": "Making Student Voices Visible",
     "home.tagline": "A platform that visualizes problem awareness and opinion trends on campus through posts and voting.",
-    "home.description": "A bulletin board where Eikei students' opinions are collected and can be responded to with 'Agree / Disagree / Pass.' The opinions and voting results gathered on this site are intended to be used as material for discussions and considerations within the university.",
+    "home.description": `A bulletin board where ${siteConfig.memberTerm.en}' opinions are collected and can be responded to with 'Agree / Disagree / Pass.' The opinions and voting results gathered on this site are intended to be used as material for discussions and considerations within the university.`,
     "home.viewOpinions": "View Opinions",
     "home.submitOpinion": "Submit Opinion",
     "home.analytics": "Analytics",
@@ -112,7 +113,7 @@ const translations = {
     // Home page
     "home.title": "学生の声を、見える形に。",
     "home.tagline": "学内の問題意識や意見の傾向を、投稿と投票を通じて可視化するプラットフォーム。",
-    "home.description": "叡啓生の意見を集め、「賛成／反対／パス」で反応できる掲示板です。本サイトに集まった意見や投票結果は、学内での議論や検討の材料として活用されることを想定しています。",
+    "home.description": `${siteConfig.memberTerm.ja}の意見を集め、「賛成／反対／パス」で反応できる掲示板です。本サイトに集まった意見や投票結果は、学内での議論や検討の材料として活用されることを想定しています。`,
     "home.viewOpinions": "意見を見る",
     "home.submitOpinion": "意見を投稿",
     "home.analytics": "分析",

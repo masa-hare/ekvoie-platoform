@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { siteConfig } from "@/siteConfig";
 
 export default function About() {
   const { t, language } = useLanguage();
@@ -12,7 +13,7 @@ export default function About() {
       purpose: {
         heading: "サイトの目的",
         content:
-          "本サイトは、叡啓大学の学生を主な対象として、学内に関する意見を匿名で投稿・共有することを目的とした掲示板型サイトです。本サイトは、特定の個人や団体を攻撃する場ではなく、学内の課題や提案を可視化することを目的としています。",
+          `本サイトは、${siteConfig.orgName.ja}の学生を主な対象として、学内に関する意見を匿名で投稿・共有することを目的とした掲示板型サイトです。本サイトは、特定の個人や団体を攻撃する場ではなく、学内の課題や提案を可視化することを目的としています。`,
       },
       ai: {
         heading: "AIの利用について",
@@ -45,7 +46,7 @@ export default function About() {
       management: {
         heading: "運営・管理について",
         content1:
-          "本サイトは、叡啓大学の学生有志により運営されています。",
+          `本サイトは、${siteConfig.orgName.ja}の学生有志により運営されています。`,
         content2:
           "投稿内容の非表示・削除等は、運営方針に基づき管理者が行います。",
       },
@@ -63,7 +64,7 @@ export default function About() {
         content2:
           "導入を検討されている方、カスタマイズや共同開発に興味のある方は、お気軽にご連絡ください。",
         github: "ソースコードを見る（GitHub）",
-        githubUrl: "https://github.com/masa-hare/ekvoie-platoform",
+        githubUrl: siteConfig.githubUrl,
       },
       appeals: {
         heading: "非表示・削除に対する異議申し立て",
@@ -74,7 +75,7 @@ export default function About() {
         heading: "お問い合わせ・問題の報告",
         content:
           "不適切な投稿の報告、本サイトの内容・運営に関するお問い合わせは、以下のメールアドレスまでお願いします。",
-        email: "ekvoice0@gmail.com",
+        email: siteConfig.contactEmail,
         note: "（本サイトに関するお問い合わせ専用）",
       },
       back: "ホームに戻る",
@@ -84,7 +85,7 @@ export default function About() {
       purpose: {
         heading: "Purpose of This Site",
         content:
-          "This site is a bulletin board platform primarily for students of Eikei University to anonymously post and share opinions about campus matters. It is not a place to attack specific individuals or groups, but rather to visualize campus issues and proposals.",
+          `This site is a bulletin board platform primarily for students of ${siteConfig.orgName.en} to anonymously post and share opinions about campus matters. It is not a place to attack specific individuals or groups, but rather to visualize campus issues and proposals.`,
       },
       ai: {
         heading: "Use of AI",
@@ -117,7 +118,7 @@ export default function About() {
       management: {
         heading: "Management and Administration",
         content1:
-          "This site is operated by student volunteers from Eikei University.",
+          `This site is operated by student volunteers from ${siteConfig.orgName.en}.`,
         content2:
           "Hiding or deleting posted content is performed by administrators based on operational policies.",
       },
@@ -146,7 +147,7 @@ export default function About() {
         heading: "Contact & Report Harmful Content",
         content:
           "To report inappropriate content or for general inquiries about this site, please contact us at the following email address:",
-        email: "ekvoice0@gmail.com",
+        email: siteConfig.contactEmail,
         note: "(For inquiries related to this site only)",
       },
       back: "Back to Home",
