@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Download, Trash2, Check, X } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Download, Trash2, Check, X, History } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ export default function Admin() {
 
   const { data: opinions, refetch } = trpc.admin.getAllOpinions.useQuery();
   const { data: pendingSolutions, refetch: refetchSolutions } = trpc.admin.getPendingSolutions.useQuery();
+  const { data: deletionLogs } = trpc.admin.getDeletionLogs.useQuery();
   const moderateMutation = trpc.admin.moderateOpinion.useMutation();
   const deleteMutation = trpc.admin.deleteOpinion.useMutation();
   const approveMutation = trpc.admin.approveOpinion.useMutation();
@@ -34,6 +35,7 @@ export default function Admin() {
   const rejectSolutionMutation = trpc.solutions.reject.useMutation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [opinionToDelete, setOpinionToDelete] = useState<number | null>(null);
+  const [historyTab, setHistoryTab] = useState<"hidden" | "rejected" | "deleted">("hidden");
 
 
   if (!isAuthenticated || user?.role !== "admin") {
@@ -390,6 +392,139 @@ export default function Admin() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Moderation History */}
+        <div className="brutalist-border-thick p-4 sm:p-8 mt-6 md:mt-12">
+          <div className="brutalist-underline inline-flex items-center gap-3 mb-6 sm:mb-8">
+            <History className="w-6 h-6" />
+            <h3 className="text-xl sm:text-3xl font-black uppercase">
+              {ja ? "モデレーション履歴" : "Moderation History"}
+            </h3>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex flex-wrap gap-1 mb-6 border-b-4 border-black">
+            {(["hidden", "rejected", "deleted"] as const).map((tab) => {
+              const label =
+                tab === "hidden"
+                  ? ja ? `非表示中 (${opinions?.filter(op => !op.isVisible).length ?? 0})` : `Hidden (${opinions?.filter(op => !op.isVisible).length ?? 0})`
+                  : tab === "rejected"
+                  ? ja ? `却下済み (${opinions?.filter(op => op.approvalStatus === "rejected").length ?? 0})` : `Rejected (${opinions?.filter(op => op.approvalStatus === "rejected").length ?? 0})`
+                  : ja ? `削除済み (${deletionLogs?.length ?? 0})` : `Deleted (${deletionLogs?.length ?? 0})`;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setHistoryTab(tab)}
+                  className={`px-4 py-2 font-black uppercase text-sm border-t-4 border-x-4 border-black transition-colors ${
+                    historyTab === tab ? "bg-black text-white" : "bg-white text-black hover:bg-gray-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Hidden */}
+          {historyTab === "hidden" && (
+            <div className="space-y-4">
+              {!opinions?.filter(op => !op.isVisible).length ? (
+                <p className="text-muted-foreground font-bold">{ja ? "非表示の意見はありません" : "No hidden opinions"}</p>
+              ) : (
+                opinions!.filter(op => !op.isVisible).map((op) => (
+                  <div key={op.id} className="border-2 border-black p-4 opacity-75">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-muted-foreground mb-1">
+                          #{op.id} · {new Date(op.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
+                        </div>
+                        <p className="font-bold text-sm mb-1">{op.problemStatement || "—"}</p>
+                        <p className="text-sm text-muted-foreground">{op.transcription}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="brutalist-border font-bold shrink-0"
+                        onClick={() => handleModerate(op.id, true)}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {ja ? "再表示" : "Restore"}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Rejected */}
+          {historyTab === "rejected" && (
+            <div className="space-y-4">
+              {!opinions?.filter(op => op.approvalStatus === "rejected").length ? (
+                <p className="text-muted-foreground font-bold">{ja ? "却下済みの意見はありません" : "No rejected opinions"}</p>
+              ) : (
+                opinions!.filter(op => op.approvalStatus === "rejected").map((op) => (
+                  <div key={op.id} className="border-2 border-black p-4 opacity-75">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-muted-foreground mb-1">
+                          #{op.id} · {new Date(op.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
+                        </div>
+                        <p className="font-bold text-sm mb-1">{op.problemStatement || "—"}</p>
+                        <p className="text-sm text-muted-foreground">{op.transcription}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="brutalist-border font-bold bg-green-100 shrink-0"
+                        onClick={() => handleApprove(op.id)}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        {ja ? "承認して復元" : "Approve"}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Deleted */}
+          {historyTab === "deleted" && (
+            <div className="space-y-4">
+              {!deletionLogs?.length ? (
+                <p className="text-muted-foreground font-bold">{ja ? "削除済みの記録はありません" : "No deletion records"}</p>
+              ) : (
+                deletionLogs.map((log) => {
+                  let preview = "";
+                  try {
+                    const parsed = JSON.parse(log.content);
+                    preview = parsed.preview || "";
+                  } catch {
+                    preview = "";
+                  }
+                  return (
+                    <div key={log.id} className="border-2 border-black p-4 bg-gray-50">
+                      <div className="text-xs font-bold text-muted-foreground mb-1">
+                        {log.postType === "opinion" ? (ja ? "意見" : "Opinion") : (ja ? "解決策" : "Solution")} #{log.postId}
+                        {" · "}
+                        {new Date(log.deletedAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
+                      </div>
+                      {preview && (
+                        <p className="text-sm font-bold mb-1 text-gray-700">「{preview}…」</p>
+                      )}
+                      {log.reason && (
+                        <p className="text-xs text-muted-foreground">
+                          {ja ? "理由: " : "Reason: "}{log.reason}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>

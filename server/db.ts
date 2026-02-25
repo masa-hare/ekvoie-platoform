@@ -276,14 +276,14 @@ export async function getAnalyticsStats() {
 
   const [opinionAgg, solutionAgg, voterCount, categoryStats, topOpinions, weeklyTrend, submitterCount] =
     await Promise.all([
-      // Opinion aggregation
+      // Opinion aggregation — vote totals only from approved+visible opinions
       db.select({
         approved:     sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then 1 else 0 end)`,
         pending:      sql<number>`sum(case when ${opinions.approvalStatus}='pending' then 1 else 0 end)`,
-        totalVotes:   sql<number>`sum(${opinions.agreeCount} + ${opinions.disagreeCount} + ${opinions.passCount})`,
-        totalAgree:   sql<number>`sum(${opinions.agreeCount})`,
-        totalDisagree: sql<number>`sum(${opinions.disagreeCount})`,
-        totalPass:    sql<number>`sum(${opinions.passCount})`,
+        totalVotes:   sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.agreeCount} + ${opinions.disagreeCount} + ${opinions.passCount} else 0 end)`,
+        totalAgree:   sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.agreeCount} else 0 end)`,
+        totalDisagree: sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.disagreeCount} else 0 end)`,
+        totalPass:    sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.passCount} else 0 end)`,
       }).from(opinions),
 
       // Solution aggregation
@@ -393,7 +393,14 @@ export async function getAnalyticsStats() {
 export async function createDeletionLog(log: InsertDeletionLog) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.insert(deletionLogs).values(log);
+}
+
+export async function getDeletionLogs() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db.select().from(deletionLogs).orderBy(desc(deletionLogs.deletedAt));
 }
 

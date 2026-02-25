@@ -12,7 +12,7 @@ import { apiLimiter, adminLoginLimiter } from "../rateLimit";
 import { verifyAdminPassword, ADMIN_OPEN_ID } from "../adminAuth";
 import { sdk } from "./sdk";
 import { getSessionCookieOptions } from "./cookies";
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { COOKIE_NAME } from "@shared/const";
 import { validateEnv } from "./env";
 import { addSseClient } from "../sse";
 
@@ -75,8 +75,8 @@ async function startServer() {
   );
 
   app.use(cookieParser());
-  app.use(express.json({ limit: "1mb" }));
-  app.use(express.urlencoded({ limit: "1mb", extended: true }));
+  app.use(express.json({ limit: "50kb" }));
+  app.use(express.urlencoded({ limit: "50kb", extended: true }));
 
   // Admin login endpoint — password-based, no personal info required
   app.post("/api/admin/login", adminLoginLimiter, async (req, res) => {
@@ -93,13 +93,14 @@ async function startServer() {
       return;
     }
 
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const sessionToken = await sdk.createSessionToken(ADMIN_OPEN_ID, {
       name: "Administrator",
-      expiresInMs: ONE_YEAR_MS,
+      expiresInMs: SEVEN_DAYS_MS,
     });
 
     const cookieOptions = getSessionCookieOptions(req);
-    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SEVEN_DAYS_MS });
     res.json({ success: true });
   });
 

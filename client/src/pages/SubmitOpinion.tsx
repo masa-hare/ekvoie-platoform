@@ -31,6 +31,10 @@ export default function SubmitOpinion() {
   const createOpinionMutation = trpc.opinions.createTextOpinion.useMutation();
 
   const handleTextSubmit = async () => {
+    if (!categoryId) {
+      toast.error(language === "ja" ? "カテゴリーを選択してください" : "Please select a category");
+      return;
+    }
     if (!problemStatement.trim()) {
       toast.error(t("submitOpinion.fillAllFields"));
       return;
@@ -51,16 +55,24 @@ export default function SubmitOpinion() {
       const result = await createOpinionMutation.mutateAsync({
         problemStatement: problemStatement.trim(),
         solutionProposal: solutionText.trim(),
-        categoryId: categoryId ? parseInt(categoryId) : undefined,
+        categoryId: parseInt(categoryId),
       });
       const id = Number((result as any).insertId);
       setSubmittedId(id);
       setProblemStatement("");
       setSolutionText("");
       setCategoryId("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Submit error:", error);
-      toast.error(t("submitOpinion.error"));
+      if (error?.data?.code === "TOO_MANY_REQUESTS") {
+        toast.error(
+          language === "ja"
+            ? "少し時間をおいてからお試しください（1分に1回まで）"
+            : "Please wait a moment before submitting again (1 per minute)"
+        );
+      } else {
+        toast.error(t("submitOpinion.error"));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -254,12 +266,33 @@ export default function SubmitOpinion() {
 
               <Button
                 onClick={handleTextSubmit}
-                disabled={isSubmitting || !problemStatement.trim() || !solutionText.trim()}
+                disabled={isSubmitting || !categoryId || !problemStatement.trim() || !solutionText.trim()}
                 className="brutalist-border-thick font-black uppercase w-full py-4 sm:py-6 text-lg sm:text-xl bg-black text-white hover:bg-black/90"
               >
                 <Send className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                 {isSubmitting ? t("submit.submitting") : t("submit.submitButton")}
               </Button>
+
+              {/* Inline hints — shown only when button is disabled */}
+              {(!categoryId || !problemStatement.trim() || !solutionText.trim()) && (
+                <div className="mt-2 space-y-1">
+                  {!categoryId && (
+                    <p className="text-sm font-bold text-red-600">
+                      {language === "ja" ? "・カテゴリーを選択してください" : "· Please select a category"}
+                    </p>
+                  )}
+                  {!problemStatement.trim() && (
+                    <p className="text-sm font-bold text-red-600">
+                      {language === "ja" ? "・問題文を入力してください" : "· Please enter a problem statement"}
+                    </p>
+                  )}
+                  {!solutionText.trim() && (
+                    <p className="text-sm font-bold text-red-600">
+                      {language === "ja" ? "・解決策を入力してください" : "· Please enter a proposed solution"}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
 

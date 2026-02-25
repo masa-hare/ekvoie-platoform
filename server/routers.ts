@@ -10,7 +10,7 @@ import { TRPCError } from "@trpc/server";
 
 import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
 import { broadcastOpinionChange } from "./sse";
-import { sanitizeInput } from "./security";
+import { sanitizeInput, scrubPII } from "./security";
 
 export const appRouter = router({
   system: systemRouter,
@@ -35,9 +35,9 @@ export const appRouter = router({
     createTextOpinion: publicProcedure
       .input(
         z.object({
-          problemStatement: z.string().min(1).max(500),
-          solutionProposal: z.string().min(1).max(500),
-          categoryId: z.number().int().positive().optional(),
+          problemStatement: z.string().trim().min(1).max(500),
+          solutionProposal: z.string().trim().min(1).max(500),
+          categoryId: z.number().int().positive(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -89,7 +89,7 @@ export const appRouter = router({
 
     // Get single opinion by ID
     getById: publicProcedure
-      .input(z.object({ id: z.number() }))
+      .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const opinion = await db.getOpinionById(input.id);
         if (!opinion || opinion.approvalStatus !== "approved" || !opinion.isVisible) {
@@ -105,7 +105,7 @@ export const appRouter = router({
     vote: publicProcedure
       .input(
         z.object({
-          opinionId: z.number(),
+          opinionId: z.number().int().positive(),
           voteType: z.enum(["agree", "disagree", "pass"]),
         })
       )
@@ -262,15 +262,13 @@ export const appRouter = router({
           });
         }
 
+        const opinionPreview = scrubPII(
+          (opinion.problemStatement || opinion.transcription || "").slice(0, 50)
+        );
         await db.createDeletionLog({
           postType: "opinion",
           postId: input.opinionId,
-          content: JSON.stringify({
-            problemStatement: opinion.problemStatement,
-            transcription: opinion.transcription,
-            language: opinion.language,
-            categoryId: opinion.categoryId,
-          }),
+          content: JSON.stringify({ preview: opinionPreview, categoryId: opinion.categoryId }),
           reason: input.reason || null,
           deletedBy: ctx.user.id,
         });
@@ -279,6 +277,11 @@ export const appRouter = router({
         broadcastOpinionChange();
         return { success: true };
       }),
+
+    // Get deletion logs (admin only)
+    getDeletionLogs: adminProcedure.query(async () => {
+      return await db.getDeletionLogs();
+    }),
 
     // Export opinions to CSV (admin only)
     exportOpinions: adminProcedure
@@ -318,43 +321,39 @@ export const appRouter = router({
     create: publicProcedure
       .input(
         z.object({
-          opinionId: z.number(),
-          title: z.string().min(10).max(200),
-          description: z.string().min(10).max(5000),
+          opinionId: z.number().int().positive(),
+          title: z.string().trim().min(10).max(200),
+          description: z.string().trim().min(10).max(1000),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        // Get or create anonymous user ID for solution creation (only creates on create action)
+        // Apply rate limiting (skip in test environment)
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve, reject) => {
+            opinionSubmitLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
+              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many submissions. Please wait 1 minute before submitting again." }));
+              else resolve();
+            });
+          });
+        }
+
+        // Get or create anonymous user ID for solution creation
         let anonymousUserId = ctx.anonymousUserId;
         if (!anonymousUserId) {
           anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
         }
 
-        // Strip HTML tags before PII detection and storage
+        // Strip HTML tags before storage
         const cleanTitle = sanitizeInput(input.title);
         const cleanDescription = sanitizeInput(input.description);
 
-        // Detect PII in title and description
-        const titlePII = detectPII(cleanTitle);
-        const descriptionPII = detectPII(cleanDescription);
-        const hasPII = titlePII.hasPII || descriptionPII.hasPII;
-
         await db.createSolution({
           opinionId: input.opinionId,
-          title: titlePII.hasPII ? titlePII.maskedText : cleanTitle,
-          description: descriptionPII.hasPII ? descriptionPII.maskedText : cleanDescription,
+          title: cleanTitle,
+          description: cleanDescription,
           anonymousUserId,
           approvalStatus: "pending",
         });
-
-        if (hasPII) {
-          const allTypes = [...titlePII.detectedTypes, ...descriptionPII.detectedTypes];
-          const detectedTypes = Array.from(new Set(allTypes));
-          await notifyOwner({
-            title: "解決策に個人情報が検出されました",
-            content: `検出された個人情報: ${detectedTypes.join(", ")}\n\n投稿内容は自動的にマスクされ、承認待ちになりました。`,
-          });
-        }
 
         return { success: true };
       }),
@@ -374,7 +373,7 @@ export const appRouter = router({
     vote: publicProcedure
       .input(
         z.object({
-          solutionId: z.number(),
+          solutionId: z.number().int().positive(),
           voteType: z.enum(["support", "oppose", "pass"]),
         })
       )
@@ -467,13 +466,13 @@ export const appRouter = router({
           });
         }
 
+        const solutionPreview = scrubPII(
+          (solution.title || solution.description || "").slice(0, 50)
+        );
         await db.createDeletionLog({
           postType: "solution",
           postId: input.solutionId,
-          content: JSON.stringify({
-            opinionId: solution.opinionId,
-            description: solution.description,
-          }),
+          content: JSON.stringify({ preview: solutionPreview, opinionId: solution.opinionId }),
           reason: input.reason || null,
           deletedBy: ctx.user.id,
         });
