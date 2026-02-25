@@ -15,6 +15,9 @@ import { getSessionCookieOptions } from "./cookies";
 import { COOKIE_NAME } from "@shared/const";
 import { validateEnv } from "./env";
 import { addSseClient } from "../sse";
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import { getDb } from "../db";
+import path from "path";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -37,6 +40,18 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   validateEnv();
+
+  // Run DB migrations automatically on startup
+  const db = await getDb();
+  if (db) {
+    try {
+      const migrationsFolder = path.resolve(import.meta.dirname, "../../drizzle");
+      await migrate(db, { migrationsFolder });
+      console.log("[DB] Migrations applied successfully");
+    } catch (err) {
+      console.error("[DB] Migration error (continuing):", err);
+    }
+  }
 
   const app = express();
   const server = createServer(app);
