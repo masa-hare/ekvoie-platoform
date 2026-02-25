@@ -23,7 +23,7 @@ export const opinionSubmitLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getCompositeKey,
-  validate: { xForwardedForHeader: false }, // Disable IPv6 validation warning
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
 /**
@@ -37,7 +37,7 @@ export const voteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getCompositeKey,
-  validate: { xForwardedForHeader: false }, // Disable IPv6 validation warning
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
 /**
@@ -51,7 +51,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getCompositeKey,
-  validate: { xForwardedForHeader: false }, // Disable IPv6 validation warning
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
 /**
@@ -65,5 +65,5 @@ export const adminLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip ?? req.socket?.remoteAddress ?? "unknown",
-  validate: { xForwardedForHeader: false },
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
