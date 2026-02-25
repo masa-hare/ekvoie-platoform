@@ -45,7 +45,7 @@ async function startServer() {
   const db = await getDb();
   if (db) {
     try {
-      const migrationsFolder = path.resolve(import.meta.dirname, "../../drizzle");
+      const migrationsFolder = path.resolve(import.meta.dirname, "../drizzle");
       await migrate(db, { migrationsFolder });
       console.log("[DB] Migrations applied successfully");
     } catch (err) {
