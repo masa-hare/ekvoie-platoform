@@ -35,10 +35,6 @@ export default function SubmitOpinion() {
       toast.error(language === "ja" ? "カテゴリーを選択してください" : "Please select a category");
       return;
     }
-    if (!problemStatement.trim()) {
-      toast.error(t("submitOpinion.fillAllFields"));
-      return;
-    }
     if (!solutionText.trim()) {
       toast.error(t("submitOpinion.fillAllFields"));
       return;
@@ -266,7 +262,7 @@ export default function SubmitOpinion() {
 
               <Button
                 onClick={handleTextSubmit}
-                disabled={isSubmitting || !categoryId || !problemStatement.trim() || !solutionText.trim()}
+                disabled={isSubmitting || !categoryId || !solutionText.trim()}
                 className="brutalist-border-thick font-black uppercase w-full py-4 sm:py-6 text-lg sm:text-xl bg-black text-white hover:bg-black/90"
               >
                 <Send className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
@@ -274,16 +270,11 @@ export default function SubmitOpinion() {
               </Button>
 
               {/* Inline hints — shown only when button is disabled */}
-              {(!categoryId || !problemStatement.trim() || !solutionText.trim()) && (
+              {(!categoryId || !solutionText.trim()) && (
                 <div className="mt-2 space-y-1">
                   {!categoryId && (
                     <p className="text-sm font-bold text-red-600">
                       {language === "ja" ? "・カテゴリーを選択してください" : "· Please select a category"}
-                    </p>
-                  )}
-                  {!problemStatement.trim() && (
-                    <p className="text-sm font-bold text-red-600">
-                      {language === "ja" ? "・問題文を入力してください" : "· Please enter a problem statement"}
                     </p>
                   )}
                   {!solutionText.trim() && (

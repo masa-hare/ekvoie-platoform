@@ -35,7 +35,7 @@ export const appRouter = router({
     createTextOpinion: publicProcedure
       .input(
         z.object({
-          problemStatement: z.string().trim().min(1).max(500),
+          problemStatement: z.string().trim().max(500).optional(),
           solutionProposal: z.string().trim().min(1).max(500),
           categoryId: z.number().int().positive(),
         })
