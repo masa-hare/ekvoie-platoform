@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Download, Trash2, Check, X, History } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Download, Trash2, Check, X, History, Tag, Plus } from "lucide-react";
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,10 @@ export default function Admin() {
   const { data: opinions, refetch } = trpc.admin.getAllOpinions.useQuery();
   const { data: pendingSolutions, refetch: refetchSolutions } = trpc.admin.getPendingSolutions.useQuery();
   const { data: deletionLogs } = trpc.admin.getDeletionLogs.useQuery();
+  const { data: categories, refetch: refetchCategories } = trpc.opinions.getCategories.useQuery();
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const addCategoryMutation = trpc.admin.addCategory.useMutation();
+  const deleteCategoryMutation = trpc.admin.deleteCategory.useMutation();
   const moderateMutation = trpc.admin.moderateOpinion.useMutation();
   const deleteMutation = trpc.admin.deleteOpinion.useMutation();
   const approveMutation = trpc.admin.approveOpinion.useMutation();
@@ -118,6 +123,32 @@ export default function Admin() {
     }
   };
   
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    try {
+      await addCategoryMutation.mutateAsync({ name });
+      toast.success(ja ? "カテゴリーを追加しました" : "Category added");
+      setNewCategoryName("");
+      refetchCategories();
+    } catch (error) {
+      console.error("Add category error:", error);
+      toast.error(ja ? "カテゴリーの追加に失敗しました" : "Failed to add category");
+    }
+  };
+
+  const handleDeleteCategory = async (id: number, name: string) => {
+    if (!confirm(ja ? `「${name}」を削除しますか？` : `Delete category "${name}"?`)) return;
+    try {
+      await deleteCategoryMutation.mutateAsync({ id });
+      toast.success(ja ? "カテゴリーを削除しました" : "Category deleted");
+      refetchCategories();
+    } catch (error) {
+      console.error("Delete category error:", error);
+      toast.error(ja ? "カテゴリーの削除に失敗しました" : "Failed to delete category");
+    }
+  };
+
   const exportQuery = trpc.admin.exportOpinions.useQuery(undefined, { enabled: false });
 
   const handleExport = async () => {
@@ -269,6 +300,61 @@ export default function Admin() {
             </div>
           </div>
         )}
+
+        {/* Category Management */}
+        <div className="brutalist-border-thick p-4 sm:p-8 mb-6 md:mb-12">
+          <div className="brutalist-underline inline-flex items-center gap-3 mb-6 sm:mb-8">
+            <Tag className="w-6 h-6" />
+            <h3 className="text-xl sm:text-3xl font-black uppercase">
+              {ja ? "カテゴリー管理" : "Category Management"}
+            </h3>
+          </div>
+
+          {/* Add new category */}
+          <div className="flex gap-2 mb-6">
+            <Input
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+              placeholder={ja ? "新しいカテゴリー名" : "New category name"}
+              className="brutalist-border font-bold max-w-xs"
+              maxLength={100}
+            />
+            <Button
+              onClick={handleAddCategory}
+              disabled={!newCategoryName.trim() || addCategoryMutation.isPending}
+              className="brutalist-border font-black uppercase"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              {ja ? "追加" : "Add"}
+            </Button>
+          </div>
+
+          {/* Category list */}
+          {!categories || categories.length === 0 ? (
+            <p className="text-muted-foreground font-bold">
+              {ja ? "カテゴリーがありません" : "No categories yet"}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center gap-2 border-4 border-black px-3 py-2 font-bold"
+                >
+                  <span>{cat.name}</span>
+                  <button
+                    onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                    className="text-red-500 hover:text-red-700 ml-1"
+                    title={ja ? "削除" : "Delete"}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Opinions list */}
         <div className="brutalist-border-thick p-4 sm:p-8">

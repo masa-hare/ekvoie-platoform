@@ -139,8 +139,23 @@ export async function updateVote(id: number, voteType: "agree" | "disagree" | "p
 export async function getCategories() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return await db.select().from(categories).orderBy(categories.name);
+}
+
+export async function createCategory(name: string, description?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(categories).values({ name, description: description || null });
+  return { insertId: Number((result as any)[0].insertId) };
+}
+
+export async function deleteCategory(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(categories).where(eq(categories.id, id));
 }
 
 

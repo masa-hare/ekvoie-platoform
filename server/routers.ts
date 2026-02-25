@@ -283,6 +283,27 @@ export const appRouter = router({
       return await db.getDeletionLogs();
     }),
 
+    // Add category (admin only)
+    addCategory: adminProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(1).max(100),
+          description: z.string().trim().max(500).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const result = await db.createCategory(input.name, input.description);
+        return { success: true, insertId: result.insertId };
+      }),
+
+    // Delete category (admin only)
+    deleteCategory: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await db.deleteCategory(input.id);
+        return { success: true };
+      }),
+
     // Export opinions to CSV (admin only)
     exportOpinions: adminProcedure
       .query(async () => {
