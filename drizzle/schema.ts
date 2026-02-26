@@ -40,6 +40,7 @@ export const categories = mysqlTable("categories", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
+  isFeedback: boolean("isFeedback").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -76,6 +76,7 @@ export const appRouter = router({
         z.object({
           categoryId: z.number().optional(),
           userId: z.number().optional(),
+          includeFeedback: z.boolean().optional(),
         }).optional()
       )
       .query(async ({ input }) => {
@@ -84,6 +85,8 @@ export const appRouter = router({
           userId: input?.userId,
           isVisible: true,
           approvalStatus: "approved",
+          // リスト表示ではフィードバックカテゴリーを除外。カテゴリービューまたは直接指定時は含む
+          excludeFeedbackCategories: !input?.includeFeedback && !input?.categoryId,
         });
       }),
 
@@ -289,11 +292,20 @@ export const appRouter = router({
         z.object({
           name: z.string().trim().min(1).max(100),
           description: z.string().trim().max(500).optional(),
+          isFeedback: z.boolean().optional(),
         })
       )
       .mutation(async ({ input }) => {
-        const result = await db.createCategory(input.name, input.description);
+        const result = await db.createCategory(input.name, input.description, input.isFeedback);
         return { success: true, insertId: result.insertId };
+      }),
+
+    // Toggle feedback flag on a category (admin only)
+    toggleCategoryFeedback: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), isFeedback: z.boolean() }))
+      .mutation(async ({ input }) => {
+        await db.toggleCategoryFeedback(input.id, input.isFeedback);
+        return { success: true };
       }),
 
     // Delete category (admin only)

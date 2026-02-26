@@ -32,6 +32,7 @@ export default function Admin() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const addCategoryMutation = trpc.admin.addCategory.useMutation();
   const deleteCategoryMutation = trpc.admin.deleteCategory.useMutation();
+  const toggleFeedbackMutation = trpc.admin.toggleCategoryFeedback.useMutation();
   const moderateMutation = trpc.admin.moderateOpinion.useMutation();
   const deleteMutation = trpc.admin.deleteOpinion.useMutation();
   const approveMutation = trpc.admin.approveOpinion.useMutation();
@@ -146,6 +147,19 @@ export default function Admin() {
     } catch (error) {
       console.error("Delete category error:", error);
       toast.error(ja ? "カテゴリーの削除に失敗しました" : "Failed to delete category");
+    }
+  };
+
+  const handleToggleFeedback = async (id: number, isFeedback: boolean) => {
+    try {
+      await toggleFeedbackMutation.mutateAsync({ id, isFeedback });
+      toast.success(isFeedback
+        ? (ja ? "フィードバックカテゴリーに設定しました" : "Set as feedback category")
+        : (ja ? "通常カテゴリーに戻しました" : "Reset to normal category"));
+      refetchCategories();
+    } catch (error) {
+      console.error("Toggle feedback error:", error);
+      toast.error(ja ? "設定の変更に失敗しました" : "Failed to update category");
     }
   };
 
@@ -340,9 +354,21 @@ export default function Admin() {
               {categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center gap-2 border-4 border-black px-3 py-2 font-bold"
+                  className={`flex items-center gap-2 border-4 px-3 py-2 font-bold ${cat.isFeedback ? "border-blue-500 bg-blue-50" : "border-black"}`}
                 >
+                  {cat.isFeedback && (
+                    <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 font-black">
+                      {ja ? "FB" : "FB"}
+                    </span>
+                  )}
                   <span>{cat.name}</span>
+                  <button
+                    onClick={() => handleToggleFeedback(cat.id, !cat.isFeedback)}
+                    className={`text-xs font-bold px-1.5 py-0.5 border-2 ${cat.isFeedback ? "border-blue-500 text-blue-600 hover:bg-blue-100" : "border-gray-400 text-gray-500 hover:bg-gray-100"}`}
+                    title={cat.isFeedback ? (ja ? "通常カテゴリーに戻す" : "Reset to normal") : (ja ? "フィードバックに設定" : "Set as feedback")}
+                  >
+                    {cat.isFeedback ? (ja ? "解除" : "Unset") : (ja ? "FB設定" : "Set FB")}
+                  </button>
                   <button
                     onClick={() => handleDeleteCategory(cat.id, cat.name)}
                     className="text-red-500 hover:text-red-700 ml-1"

@@ -31,6 +31,7 @@ export default function Opinions() {
   const { data: opinions, refetch } = trpc.opinions.list.useQuery(
     {
       categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
+      includeFeedback: viewMode === "category",
     },
     {
       placeholderData: (previousData) => previousData,
@@ -377,7 +378,7 @@ export default function Opinions() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("opinions.all")}</SelectItem>
-                  {categories?.map((cat) => (
+                  {categories?.filter(cat => !cat.isFeedback).map((cat) => (
                     <SelectItem key={cat.id} value={String(cat.id)}>
                       {cat.name}
                     </SelectItem>
