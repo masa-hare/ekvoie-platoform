@@ -300,7 +300,7 @@ export default function About() {
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen className="w-5 h-5 shrink-0" />
                   <span className="font-bold text-sm">
-                    {language === "ja" ? "サイトインサイト" : "Site Insights"}
+                    {language === "ja" ? "サイト簡単解説" : "Site Guide"}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">

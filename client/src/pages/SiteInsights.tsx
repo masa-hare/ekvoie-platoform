@@ -249,7 +249,7 @@ export default function SiteInsights() {
         </Link>
 
         <h1 className="text-4xl font-bold mb-2 text-gray-900">
-          {ja ? "サイトインサイト" : "Site Insights"}
+          {ja ? "サイト簡単解説" : "Site Guide"}
         </h1>
         <p className="text-gray-500 mb-8">
           {ja
@@ -272,23 +272,24 @@ export default function SiteInsights() {
             <ul className="space-y-2 text-gray-700 text-sm">
               {(ja
                 ? [
-                    "📝 匿名で意見・解決策を投稿（アカウント不要）",
-                    "👍 賛成・反対・パスの3択で投票",
-                    "💡 他のユーザーが解決策を追加提案",
-                    "📊 投票数・賛成率をリアルタイムで可視化",
-                    "🔒 管理者が承認した投稿のみ公開（スパム・誹謗中傷を防止）",
-                    "🌐 日本語・英語の2言語に対応",
+                    "匿名で意見・解決策を投稿（アカウント不要）",
+                    "賛成・反対・パスの3択で投票",
+                    "他のユーザーが解決策を追加提案",
+                    "投票数・賛成率をリアルタイムで可視化",
+                    "管理者が承認した投稿のみ公開（スパム・誹謗中傷を防止）",
+                    "日本語・英語の2言語に対応",
                   ]
                 : [
-                    "📝 Post anonymously — no account needed",
-                    "👍 Vote: agree, disagree, or pass",
-                    "💡 Others can add solution proposals",
-                    "📊 Real-time vote counts and approval rates",
-                    "🔒 Admin approval required before posts go public",
-                    "🌐 Japanese and English bilingual support",
+                    "Post anonymously — no account needed",
+                    "Vote: agree, disagree, or pass",
+                    "Others can add solution proposals",
+                    "Real-time vote counts and approval rates",
+                    "Admin approval required before posts go public",
+                    "Japanese and English bilingual support",
                   ]
               ).map((item, i) => (
                 <li key={i} className="flex items-start gap-2">
+                  <span className="text-gray-400 shrink-0">-</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -308,7 +309,7 @@ export default function SiteInsights() {
               </p>
               <div className="bg-gray-50 border border-gray-200 rounded p-4">
                 <p className="font-semibold text-sm mb-1">
-                  {ja ? "📖 わかりやすいたとえ" : "📖 Simple Analogy"}
+                  {ja ? "わかりやすいたとえ" : "Simple Analogy"}
                 </p>
                 <p className="text-sm leading-relaxed">
                   {ja
