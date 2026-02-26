@@ -188,7 +188,8 @@ export default function Opinions() {
       uncategorized: "Uncategorized",
       noOpinionsInCategory: "No opinions in this category",
       topicLabel: "Topic (Problem Statement)",
-      detailButton: "Details & Solutions",
+      solutionLabel: "Submitter's Solution",
+      detailButton: "View Solutions",
     },
     ja: {
       viewList: "リスト表示",
@@ -202,7 +203,8 @@ export default function Opinions() {
       uncategorized: "未分類",
       noOpinionsInCategory: "このカテゴリーには意見がありません",
       topicLabel: "トピック（問題文）",
-      detailButton: "詳細・解決策を見る",
+      solutionLabel: "投稿者の解決策",
+      detailButton: "解決策を見る",
     },
   };
 
@@ -254,7 +256,14 @@ export default function Opinions() {
             </p>
           </div>
         )}
-
+        {opinion.transcription && (
+          <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400">
+            <div className="text-xs sm:text-sm font-bold text-muted-foreground mb-1">{tt.solutionLabel}</div>
+            <p className="text-sm sm:text-base font-semibold leading-relaxed">
+              {opinion.transcription}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Vote counts */}
