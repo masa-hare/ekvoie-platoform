@@ -342,11 +342,6 @@ export default function SiteInsights() {
             <h2 className="text-2xl font-semibold mb-2 text-gray-900">
               {ja ? "このサイトを支える技術" : "Technologies Behind This Site"}
             </h2>
-            <p className="text-sm text-gray-500 mb-5">
-              {ja
-                ? "各技術のカッコ内は正式名称。平易な言葉で説明しています。"
-                : "Plain-language descriptions of each technology used."}
-            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {techStack.map((item) => (
                 <div key={item.tech} className="border-2 border-black p-3">
