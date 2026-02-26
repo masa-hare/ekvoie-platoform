@@ -1,6 +1,5 @@
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart3, TrendingUp, Users, MessageSquare,
   CheckCircle2, Clock, Lightbulb, ThumbsUp, ArrowLeft,
@@ -10,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const L = {
   ja: {
+    loading: "読み込み中...",
     error: "データの取得に失敗しました",
     back: "← ホームに戻る",
     title: "分析",
@@ -47,6 +47,7 @@ const L = {
     tooltipPosts: "投稿数",
   },
   en: {
+    loading: "Loading...",
     error: "Failed to load data",
     back: "← Back to Home",
     title: "Analytics",
@@ -139,23 +140,8 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="min-h-[100dvh] bg-white">
-        <div className="max-w-5xl mx-auto px-4 py-10">
-          <Skeleton className="h-10 w-48 mb-2" />
-          <Skeleton className="h-4 w-72 mb-10" />
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-          </div>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-10">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-          </div>
-        </div>
+      <div className="min-h-[100dvh] bg-white flex items-center justify-center">
+        <p className="text-xl font-bold">{l.loading}</p>
       </div>
     );
   }
