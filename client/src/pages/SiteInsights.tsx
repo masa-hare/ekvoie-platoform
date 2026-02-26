@@ -251,12 +251,6 @@ export default function SiteInsights() {
         <h1 className="text-4xl font-bold mb-2 text-gray-900">
           {ja ? "サイト簡単解説" : "Site Guide"}
         </h1>
-        <p className="text-gray-500 mb-8">
-          {ja
-            ? "このサイトの仕組みを、専門知識がなくてもわかるように解説します。"
-            : "How this site works — explained without requiring technical knowledge."}
-        </p>
-
         <div className="space-y-8">
 
           {/* Section 1: このサイトでできること */}
