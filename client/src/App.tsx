@@ -11,6 +11,7 @@ const Opinions = lazy(() => import("./pages/Opinions"));
 const OpinionDetail = lazy(() => import("./pages/OpinionDetail"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const About = lazy(() => import("./pages/About"));
+const SiteInsights = lazy(() => import("./pages/SiteInsights"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
@@ -25,6 +26,7 @@ function Router() {
       import("./pages/OpinionDetail");
       import("./pages/HowItWorks");
       import("./pages/About");
+      import("./pages/SiteInsights");
       import("./pages/Analytics");
       import("./pages/AdminLogin");
       import("./pages/Admin");
@@ -46,6 +48,7 @@ function Router() {
         <Route path={"/opinions/:id"} component={OpinionDetail} />
         <Route path={"/how-it-works"} component={HowItWorks} />
         <Route path={"/about"} component={About} />
+        <Route path={"/site-insights"} component={SiteInsights} />
         <Route path={"/analytics"} component={Analytics} />
         <Route path={"/admin/login"} component={AdminLogin} />
         <Route path={"/admin"} component={Admin} />

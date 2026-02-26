@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink, BookOpen } from "lucide-react";
 import { siteConfig } from "@/siteConfig";
 
 export default function About() {
@@ -266,24 +266,49 @@ export default function About() {
             <h2 className="text-2xl font-semibold mb-4 text-gray-900">
               {text.opensource.heading}
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-3 mb-5">
               <p className="text-gray-700 leading-relaxed">
                 {text.opensource.content1}
               </p>
               <p className="text-gray-700 leading-relaxed">
                 {text.opensource.content2}
               </p>
+            </div>
+            {/* 横並び2カード */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <a
                 href={text.opensource.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-2 font-semibold text-gray-900 hover:underline"
+                className="flex flex-col justify-between border-2 border-black p-4 hover:bg-gray-50 transition-colors"
               >
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-                {text.opensource.github}
+                <div className="flex items-center gap-2 mb-2">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current shrink-0" aria-hidden="true">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                  <span className="font-bold text-sm">{text.opensource.github}</span>
+                  <ExternalLink className="w-3 h-3 ml-auto shrink-0 text-gray-400" />
+                </div>
+                <p className="text-xs text-gray-500">
+                  {language === "ja" ? "ソースコード・導入手順はこちら" : "Source code & setup instructions"}
+                </p>
               </a>
+              <Link
+                href="/site-insights"
+                className="flex flex-col justify-between border-2 border-black p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="w-5 h-5 shrink-0" />
+                  <span className="font-bold text-sm">
+                    {language === "ja" ? "サイトインサイト" : "Site Insights"}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {language === "ja"
+                    ? "このサイトの仕組みを、わかりやすく解説"
+                    : "How this site works, explained plainly"}
+                </p>
+              </Link>
             </div>
           </section>
 
