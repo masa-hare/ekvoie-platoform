@@ -44,13 +44,18 @@ export default function Opinions() {
   // Invalidate opinion cache instantly when admin performs a moderation action
   useOpinionEvents();
   
+  const listQueryKey = {
+    categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
+    includeFeedback: viewMode === "category",
+  };
+
   const voteMutation = trpc.opinions.vote.useMutation({
     onMutate: async ({ opinionId, voteType }) => {
-      await utils.opinions.list.cancel({ categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined });
-      const previousOpinions = utils.opinions.list.getData({ categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined });
+      await utils.opinions.list.cancel(listQueryKey);
+      const previousOpinions = utils.opinions.list.getData(listQueryKey);
       if (previousOpinions) {
         utils.opinions.list.setData(
-          { categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined },
+          listQueryKey,
           previousOpinions.map(op => {
             if (op.id === opinionId) {
               return {
@@ -68,10 +73,10 @@ export default function Opinions() {
     },
     onSuccess: (data, variables) => {
       // サーバーから返された確定値でキャッシュを更新
-      const previousOpinions = utils.opinions.list.getData({ categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined });
+      const previousOpinions = utils.opinions.list.getData(listQueryKey);
       if (previousOpinions && data.counts) {
         utils.opinions.list.setData(
-          { categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined },
+          listQueryKey,
           previousOpinions.map(op => {
             if (op.id === variables.opinionId) {
               return {
@@ -89,10 +94,7 @@ export default function Opinions() {
     },
     onError: (error, variables, context) => {
       if (context?.previousOpinions) {
-        utils.opinions.list.setData(
-          { categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined },
-          context.previousOpinions
-        );
+        utils.opinions.list.setData(listQueryKey, context.previousOpinions);
       }
       console.error("Vote error:", error);
       toast.error(t("opinions.voteError"));
