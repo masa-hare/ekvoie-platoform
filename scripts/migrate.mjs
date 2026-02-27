@@ -1,8 +1,11 @@
 import mysql from "mysql2/promise";
 
-const conn = await mysql.createConnection(
-  "mysql://svp_user:svp_local_pass@localhost:3306/student_voice"
-);
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("DATABASE_URL environment variable is required");
+  process.exit(1);
+}
+const conn = await mysql.createConnection(connectionString);
 
 const steps = [
   // === 新規テーブル ===
