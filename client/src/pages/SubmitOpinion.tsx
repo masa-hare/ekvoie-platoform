@@ -60,11 +60,24 @@ export default function SubmitOpinion() {
       setCategoryId("");
     } catch (error: any) {
       console.error("Submit error:", error);
+      const msg: string = error?.message ?? "";
       if (error?.data?.code === "TOO_MANY_REQUESTS") {
         toast.error(
           language === "ja"
             ? "少し時間をおいてからお試しください（1分に1回まで）"
             : "Please wait a moment before submitting again (1 per minute)"
+        );
+      } else if (msg.includes("CONTENT_VIOLATION_PII")) {
+        toast.error(
+          language === "ja"
+            ? "メールアドレス・電話番号などの個人情報は投稿できません。削除して再投稿してください。"
+            : "Posts containing personal information (email, phone number, etc.) cannot be submitted."
+        );
+      } else if (msg.includes("CONTENT_VIOLATION_HARMFUL")) {
+        toast.error(
+          language === "ja"
+            ? "不適切な表現が含まれているため投稿できません。内容を確認してください。"
+            : "Your post contains inappropriate content and cannot be submitted."
         );
       } else {
         toast.error(t("submitOpinion.error"));
@@ -97,12 +110,12 @@ export default function SubmitOpinion() {
             <div className="brutalist-border-thick p-8">
               <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
               <h3 className="text-2xl sm:text-3xl font-black mb-2">
-                {language === "ja" ? "投稿を受け付けました" : "Submission Received"}
+                {language === "ja" ? "投稿しました" : "Posted!"}
               </h3>
               <p className="text-gray-600 mb-6 font-semibold">
                 {language === "ja"
-                  ? "管理者の承認後に公開されます。"
-                  : "Your post will be published after admin approval."}
+                  ? "意見一覧にすぐ反映されます。"
+                  : "Your opinion is now live in the list."}
               </p>
 
               {/* Post ID display */}
@@ -125,8 +138,8 @@ export default function SubmitOpinion() {
                 </div>
                 <p className="text-xs text-gray-500 mt-2 font-semibold">
                   {language === "ja"
-                    ? "このIDを控えておくと、問い合わせや異議申し立ての際に役立ちます。"
-                    : "Keep this ID for reference if you need to contact us about your post."}
+                    ? "このIDを控えておくと、削除依頼などの際に役立ちます。"
+                    : "Keep this ID for reference if you need to request removal of your post."}
                 </p>
               </div>
 

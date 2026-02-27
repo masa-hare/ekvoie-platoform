@@ -33,3 +33,40 @@ export function scrubPII(text: string): string {
   }
   return result;
 }
+
+/**
+ * Pre-submission content check: blocks PII and clearly harmful language.
+ * Returns { ok: true } if content passes, or { ok: false, type } if blocked.
+ */
+const PII_BLOCK: RegExp[] = [
+  // Email addresses
+  /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/,
+  // Japanese mobile/landline phone numbers
+  /(\+81[-\s]?|0[5-9]0[-\s]?\d{4}[-\s]?\d{4}|0\d{1,4}[-\s]?\d{1,4}[-\s]?\d{3,4})/,
+  // 10-11 continuous digits (phone without separator)
+  /(?<!\d)\d{10,11}(?!\d)/,
+  // SNS handles
+  /@[a-zA-Z0-9_.]{3,}/,
+];
+
+const HARMFUL: RegExp[] = [
+  // Death threats / violence
+  /死[にね]|氏ね|しね|殺[すし]|ぶっ殺|消えろ/,
+  // Sexual violence
+  /レイプ|強姦/,
+];
+
+export type ContentCheckResult =
+  | { ok: true }
+  | { ok: false; type: "pii" | "harmful" };
+
+export function checkContent(...texts: string[]): ContentCheckResult {
+  const combined = texts.filter(Boolean).join(" ");
+  for (const pattern of PII_BLOCK) {
+    if (pattern.test(combined)) return { ok: false, type: "pii" };
+  }
+  for (const pattern of HARMFUL) {
+    if (pattern.test(combined)) return { ok: false, type: "harmful" };
+  }
+  return { ok: true };
+}

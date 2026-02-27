@@ -10,7 +10,7 @@ import { TRPCError } from "@trpc/server";
 
 import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
 import { broadcastOpinionChange } from "./sse";
-import { sanitizeInput, scrubPII } from "./security";
+import { sanitizeInput, scrubPII, checkContent } from "./security";
 
 export const appRouter = router({
   system: systemRouter,
@@ -58,15 +58,25 @@ export const appRouter = router({
         const cleanProblem = sanitizeInput(input.problemStatement);
         const cleanSolution = sanitizeInput(input.solutionProposal);
 
-        // Create opinion (always pending for moderation)
+        // Pre-submission content check
+        const check = checkContent(cleanProblem, cleanSolution);
+        if (!check.ok) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : "CONTENT_VIOLATION_HARMFUL",
+          });
+        }
+
+        // Create opinion — published immediately (post-moderation model)
         const opinion = await db.createOpinion({
           problemStatement: cleanProblem,
           transcription: cleanSolution,
           categoryId: input.categoryId,
           anonymousUserId: anonymousUserId,
-          approvalStatus: "pending",
+          approvalStatus: "approved",
         });
 
+        broadcastOpinionChange();
         return opinion;
       }),
 
@@ -380,12 +390,21 @@ export const appRouter = router({
         const cleanTitle = sanitizeInput(input.title);
         const cleanDescription = sanitizeInput(input.description);
 
+        // Pre-submission content check
+        const check = checkContent(cleanTitle, cleanDescription);
+        if (!check.ok) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : "CONTENT_VIOLATION_HARMFUL",
+          });
+        }
+
         await db.createSolution({
           opinionId: input.opinionId,
           title: cleanTitle,
           description: cleanDescription,
           anonymousUserId,
-          approvalStatus: "pending",
+          approvalStatus: "approved",
         });
 
         return { success: true };

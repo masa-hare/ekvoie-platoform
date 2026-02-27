@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Download, Trash2, Check, X, History, Tag, Plus } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Download, Trash2, X, History, Tag, Plus } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,7 +26,6 @@ export default function Admin() {
   const ja = language === "ja";
 
   const { data: opinions, refetch } = trpc.admin.getAllOpinions.useQuery();
-  const { data: pendingSolutions, refetch: refetchSolutions } = trpc.admin.getPendingSolutions.useQuery();
   const { data: deletionLogs } = trpc.admin.getDeletionLogs.useQuery();
   const { data: categories, refetch: refetchCategories } = trpc.opinions.getCategories.useQuery();
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -35,13 +34,9 @@ export default function Admin() {
   const toggleFeedbackMutation = trpc.admin.toggleCategoryFeedback.useMutation();
   const moderateMutation = trpc.admin.moderateOpinion.useMutation();
   const deleteMutation = trpc.admin.deleteOpinion.useMutation();
-  const approveMutation = trpc.admin.approveOpinion.useMutation();
-  const rejectMutation = trpc.admin.rejectOpinion.useMutation();
-  const approveSolutionMutation = trpc.solutions.approve.useMutation();
-  const rejectSolutionMutation = trpc.solutions.reject.useMutation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [opinionToDelete, setOpinionToDelete] = useState<number | null>(null);
-  const [historyTab, setHistoryTab] = useState<"hidden" | "rejected" | "deleted">("hidden");
+  const [historyTab, setHistoryTab] = useState<"hidden" | "deleted">("hidden");
 
 
   if (!isAuthenticated || user?.role !== "admin") {
@@ -80,50 +75,6 @@ export default function Admin() {
     setDeleteDialogOpen(true);
   };
 
-  const handleApprove = async (opinionId: number) => {
-    try {
-      await approveMutation.mutateAsync({ opinionId });
-      toast.success(t("admin.approveSuccess"));
-      refetch();
-    } catch (error) {
-      console.error("Approve error:", error);
-      toast.error(t("admin.approveError"));
-    }
-  };
-
-  const handleReject = async (opinionId: number) => {
-    try {
-      await rejectMutation.mutateAsync({ opinionId });
-      toast.success(t("admin.rejectSuccess"));
-      refetch();
-    } catch (error) {
-      console.error("Reject error:", error);
-      toast.error(t("admin.rejectError"));
-    }
-  };
-
-  const handleApproveSolution = async (solutionId: number) => {
-    try {
-      await approveSolutionMutation.mutateAsync({ solutionId });
-      toast.success(ja ? "解決策を承認しました" : "Solution approved");
-      refetchSolutions();
-    } catch (error) {
-      console.error("Approve solution error:", error);
-      toast.error(ja ? "解決策の承認に失敗しました" : "Failed to approve solution");
-    }
-  };
-
-  const handleRejectSolution = async (solutionId: number) => {
-    try {
-      await rejectSolutionMutation.mutateAsync({ solutionId });
-      toast.success(ja ? "解決策を非公開にしました" : "Solution hidden");
-      refetchSolutions();
-    } catch (error) {
-      console.error("Reject solution error:", error);
-      toast.error(ja ? "解決策の非公開に失敗しました" : "Failed to hide solution");
-    }
-  };
-  
   const handleAddCategory = async () => {
     const name = newCategoryName.trim();
     if (!name) return;
@@ -262,59 +213,6 @@ export default function Admin() {
           </motion.div>
         </div>
 
-        {/* Pending Solutions */}
-        {pendingSolutions && pendingSolutions.length > 0 && (
-          <div className="brutalist-border-thick p-4 sm:p-8 mb-6 md:mb-12">
-            <div className="brutalist-underline inline-block mb-6 sm:mb-8">
-              <h3 className="text-xl sm:text-3xl font-black uppercase">{ja ? "未承認の解決策" : "Pending Solutions"}</h3>
-            </div>
-            <div className="space-y-6">
-              {pendingSolutions.map((solution: any) => (
-                <div
-                  key={solution.id}
-                  className="border-4 border-black p-4 sm:p-6"
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="flex-1">
-                        <div className="text-xs sm:text-sm font-bold text-muted-foreground mb-2">
-                          #{solution.id} · {ja ? "意見ID" : "Opinion"}: {solution.opinionId} ·{" "}
-                          {new Date(solution.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
-                        </div>
-                        <div className="inline-block px-3 py-1 bg-yellow-500 text-black font-bold text-sm mb-3">
-                          {ja ? "承認待ち" : "Pending"}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleApproveSolution(solution.id)}
-                        className="brutalist-border font-black uppercase text-xs sm:text-sm bg-green-500 hover:bg-green-600 text-white"
-                        size="sm"
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        {ja ? "承認" : "Approve"}
-                      </Button>
-                      <Button
-                        onClick={() => handleRejectSolution(solution.id)}
-                        className="brutalist-border font-black uppercase text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white"
-                        size="sm"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        {ja ? "非公開" : "Hide"}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="prose max-w-none">
-                    <p className="text-base sm:text-lg font-black mb-1">{solution.title}</p>
-                    <p className="text-sm sm:text-base text-muted-foreground">{solution.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Category Management */}
         <div className="brutalist-border-thick p-4 sm:p-8 mb-6 md:mb-12">
           <div className="brutalist-underline inline-flex items-center gap-3 mb-6 sm:mb-8">
@@ -407,52 +305,15 @@ export default function Admin() {
                           {new Date(opinion.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
                         </div>
                         <div className="flex gap-2">
-                        {!opinion.isVisible && (
-                          <div className="inline-block px-3 py-1 bg-black text-white font-bold text-sm">
-                            {ja ? "非表示" : "Hidden"}
-                          </div>
-                        )}
-                        {opinion.approvalStatus === "pending" && (
-                          <div className="inline-block px-3 py-1 bg-yellow-500 text-black font-bold text-sm">
-                            {ja ? "承認待ち" : "Pending"}
-                          </div>
-                        )}
-                        {opinion.approvalStatus === "approved" && (
-                          <div className="inline-block px-3 py-1 bg-green-500 text-white font-bold text-sm">
-                            {ja ? "承認済み" : "Approved"}
-                          </div>
-                        )}
-                        {opinion.approvalStatus === "rejected" && (
-                          <div className="inline-block px-3 py-1 bg-red-500 text-white font-bold text-sm">
-                            {ja ? "却下" : "Rejected"}
-                          </div>
-                        )}
+                          {!opinion.isVisible && (
+                            <div className="inline-block px-3 py-1 bg-black text-white font-bold text-sm">
+                              {ja ? "非表示" : "Hidden"}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {opinion.approvalStatus === "pending" && (
-                        <>
-                          <Button
-                            onClick={() => handleApprove(opinion.id)}
-                            variant="outline"
-                            className="brutalist-border font-bold bg-green-100"
-                            size="sm"
-                          >
-                            <Check className="w-4 h-4 mr-1" />
-                            {ja ? "承認" : "Approve"}
-                          </Button>
-                          <Button
-                            onClick={() => handleReject(opinion.id)}
-                            variant="outline"
-                            className="brutalist-border font-bold bg-red-100"
-                            size="sm"
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            {ja ? "却下" : "Reject"}
-                          </Button>
-                        </>
-                      )}
                       <Button
                         onClick={() => handleModerate(opinion.id, !opinion.isVisible)}
                         variant="outline"
@@ -519,12 +380,10 @@ export default function Admin() {
 
           {/* Tabs */}
           <div className="flex flex-wrap gap-1 mb-6 border-b-4 border-black">
-            {(["hidden", "rejected", "deleted"] as const).map((tab) => {
+            {(["hidden", "deleted"] as const).map((tab) => {
               const label =
                 tab === "hidden"
                   ? ja ? `非表示中 (${opinions?.filter(op => !op.isVisible).length ?? 0})` : `Hidden (${opinions?.filter(op => !op.isVisible).length ?? 0})`
-                  : tab === "rejected"
-                  ? ja ? `却下済み (${opinions?.filter(op => op.approvalStatus === "rejected").length ?? 0})` : `Rejected (${opinions?.filter(op => op.approvalStatus === "rejected").length ?? 0})`
                   : ja ? `削除済み (${deletionLogs?.length ?? 0})` : `Deleted (${deletionLogs?.length ?? 0})`;
               return (
                 <button
@@ -564,38 +423,6 @@ export default function Admin() {
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         {ja ? "再表示" : "Restore"}
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Rejected */}
-          {historyTab === "rejected" && (
-            <div className="space-y-4">
-              {!opinions?.filter(op => op.approvalStatus === "rejected").length ? (
-                <p className="text-muted-foreground font-bold">{ja ? "却下済みの意見はありません" : "No rejected opinions"}</p>
-              ) : (
-                opinions!.filter(op => op.approvalStatus === "rejected").map((op) => (
-                  <div key={op.id} className="border-2 border-black p-4 opacity-75">
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
-                      <div className="flex-1">
-                        <div className="text-xs font-bold text-muted-foreground mb-1">
-                          #{op.id} · {new Date(op.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
-                        </div>
-                        <p className="font-bold text-sm mb-1">{op.problemStatement || "—"}</p>
-                        <p className="text-sm text-muted-foreground">{op.transcription}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="brutalist-border font-bold bg-green-100 shrink-0"
-                        onClick={() => handleApprove(op.id)}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        {ja ? "承認して復元" : "Approve"}
                       </Button>
                     </div>
                   </div>
