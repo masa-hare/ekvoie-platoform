@@ -56,6 +56,13 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Suppress "Parse Error" log spam from clients that disconnect mid-request
+  // (browser cancels, Railway health checks, bots, etc.)
+  server.on("clientError", (err: any, socket) => {
+    if (!socket.writable) return;
+    socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+  });
+
   app.set("trust proxy", 1);
 
   const isDevelopment = process.env.NODE_ENV === "development";
