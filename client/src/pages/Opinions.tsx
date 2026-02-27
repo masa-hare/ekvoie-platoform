@@ -28,7 +28,7 @@ export default function Opinions() {
   const [sortType, setSortType] = useState<SortType>("newest");
   const [votingOpinionIds, setVotingOpinionIds] = useState<Set<number>>(new Set());
 
-  const { data: opinions, refetch } = trpc.opinions.list.useQuery(
+  const { data: opinions, isLoading, refetch } = trpc.opinions.list.useQuery(
     {
       categoryId: categoryFilter && categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
       includeFeedback: viewMode === "category",
@@ -180,6 +180,7 @@ export default function Opinions() {
 
   const translations = {
     en: {
+      loading: "Loading...",
       viewList: "LIST VIEW",
       viewCategory: "BY CATEGORY",
       sortNewest: "Newest",
@@ -195,6 +196,7 @@ export default function Opinions() {
       detailButton: "View Solutions",
     },
     ja: {
+      loading: "読み込み中...",
       viewList: "リスト表示",
       viewCategory: "カテゴリー別",
       sortNewest: "新着順",
@@ -408,7 +410,11 @@ export default function Opinions() {
         {viewMode === "list" ? (
           // List view
           <>
-            {!sortedOpinions || sortedOpinions.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-24">
+                <p className="text-xl font-bold">{tt.loading}</p>
+              </div>
+            ) : !sortedOpinions || sortedOpinions.length === 0 ? (
               <div className="text-center py-24">
                 <div className="text-6xl font-black mb-4">[ EMPTY ]</div>
                 <p className="text-xl font-semibold">{t("opinions.noOpinions")}</p>
@@ -426,6 +432,10 @@ export default function Opinions() {
               </div>
             )}
           </>
+        ) : isLoading ? (
+          <div className="text-center py-24">
+            <p className="text-xl font-bold">{tt.loading}</p>
+          </div>
         ) : (
           // Category view with tabs
           <Tabs defaultValue={categories?.[0]?.id.toString() || "0"} className="w-full">
