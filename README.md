@@ -1,8 +1,8 @@
 # Student Voice Platform / 学生ボイスプラットフォーム
 
-A bilingual (Japanese/English) anonymous student opinion platform with voting, moderation, and analytics — built for universities and educational institutions.
+A bilingual (Japanese/English) anonymous student opinion platform with voting, post-moderation, and analytics — built for universities and educational institutions.
 
-匿名で学生の意見を投稿・集計・可視化できる、日本語/英語対応のプラットフォームです。大学・教育機関向けに設計されており、管理者による承認機能や分析ダッシュボードを備えています。
+匿名で学生の意見を投稿・集計・可視化できる、日本語/英語対応のプラットフォームです。大学・教育機関向けに設計されており、投稿前コンテンツフィルター・事後モデレーション・分析ダッシュボードを備えています。
 
 ---
 
@@ -12,7 +12,8 @@ A bilingual (Japanese/English) anonymous student opinion platform with voting, m
 |---------|--------|
 | **Anonymous posting** — students post problems and proposed solutions without accounts | **匿名投稿** — アカウント不要で問題・解決策を投稿できます |
 | **Agree / Disagree / Pass voting** — vote on opinions and solution proposals | **賛成・反対・パス投票** — 意見と解決策の両方に投票できます |
-| **Admin moderation** — approve, hide, or reject posts via a password-protected admin panel | **管理者モデレーション** — パスワード保護された管理パネルで投稿の承認・非表示・却下が可能 |
+| **Content filter** — rule-based (not AI) pre-submission filter blocks personal info and harmful language | **コンテンツフィルター** — 投稿前に個人情報・有害表現をルールベースで自動ブロック（AIは使用していません） |
+| **Post-moderation** — posts publish instantly; admins hide or delete problematic content after the fact | **事後モデレーション** — 投稿は即時公開。管理者が事後確認し、問題投稿を非表示または削除 |
 | **Analytics dashboard** — real-time vote stats, category breakdown, top opinions | **分析ダッシュボード** — リアルタイムの投票統計、カテゴリー別集計、上位意見を表示 |
 | **Bilingual UI** — Japanese / English toggle, persisted in localStorage | **日英バイリンガルUI** — 日本語/英語の切り替えに対応（localStorage に保存） |
 | **Solution proposals** — community members can propose solutions; best solution is highlighted | **解決策提案** — コミュニティメンバーが解決策を提案でき、最も支持された案が強調表示されます |
@@ -144,18 +145,10 @@ Generate a secret / シークレットの生成:
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-### 4. Run migrations / マイグレーションを実行
+### 4. Done / 完了
 
-In Railway Shell (or temporarily change Start Command):
-Railway のシェルで以下を実行してください：
-```bash
-pnpm db:push
-```
-
-### 5. Done / 完了
-
-Railway auto-deploys on every push to `main`.
-`main` ブランチにプッシュするたびに自動デプロイされます。
+Railway auto-deploys on every push to `main`. Database migrations run automatically on startup.
+`main` ブランチにプッシュするたびに自動デプロイされます。データベースのマイグレーションは起動時に自動実行されます。
 
 ---
 
@@ -165,8 +158,8 @@ Access the admin panel at `/admin-login`.
 管理パネルへは `/admin-login` からアクセスしてください。
 
 From the admin panel you can / 管理パネルでできること:
-- Approve / reject / hide opinions / 意見の承認・却下・非表示
-- Approve / reject solution proposals / 解決策提案の承認・却下
+- Hide or delete opinions / 意見の非表示・削除
+- Hide or delete solution proposals / 解決策提案の非表示・削除
 - Export all data as CSV / 全データをCSVでエクスポート
 
 ---
@@ -197,7 +190,7 @@ student-voice-platform/
 │   ├── _core/               # Expressアプリ、tRPCセットアップ、認証
 │   ├── routers.ts           # 全APIエンドポイント
 │   ├── db.ts                # データベースクエリ
-│   └── security.ts          # 入力サニタイズ
+│   └── security.ts          # 入力サニタイズ・コンテンツフィルター
 ├── drizzle/
 │   └── schema.ts            # データベーススキーマ
 ├── .env.example             # 環境変数テンプレート

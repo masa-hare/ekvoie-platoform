@@ -270,7 +270,8 @@ export default function SiteInsights() {
                     "賛成・反対・パスの3択で投票",
                     "他のユーザーが解決策を追加提案",
                     "投票数・賛成率をリアルタイムで可視化",
-                    "管理者が承認した投稿のみ公開（スパム・誹謗中傷を防止）",
+                    "投稿前に個人情報・有害表現を自動ブロック（AIではなくルールベースのフィルター）",
+                    "投稿は即時公開、管理者が事後確認して問題投稿を削除",
                     "日本語・英語の2言語に対応",
                   ]
                 : [
@@ -278,7 +279,8 @@ export default function SiteInsights() {
                     "Vote: agree, disagree, or pass",
                     "Others can add solution proposals",
                     "Real-time vote counts and approval rates",
-                    "Admin approval required before posts go public",
+                    "Pre-submission filter blocks personal info and harmful language (rule-based, not AI)",
+                    "Posts publish instantly; admins review and remove problematic content after the fact",
                     "Japanese and English bilingual support",
                   ]
               ).map((item, i) => (
@@ -360,17 +362,17 @@ export default function SiteInsights() {
               {(ja
                 ? [
                     { step: "1", title: "投稿", desc: "学生がフォームに意見を入力して送信する。" },
-                    { step: "2", title: "サニタイズ", desc: "悪意あるコード（XSS）を除去。安全なテキストのみ保存。" },
-                    { step: "3", title: "データベースへ保存", desc: "意見が「承認待ち」状態でMySQLに書き込まれる。" },
-                    { step: "4", title: "管理者が確認・承認", desc: "管理者パネルで内容を確認し、問題なければ「承認」する。" },
-                    { step: "5", title: "公開", desc: "承認された意見が意見一覧に表示され、他のユーザーが投票できる。" },
+                    { step: "2", title: "コンテンツフィルター", desc: "個人情報（メール・電話番号）や有害表現を自動チェック。ルールに引っかかった場合は送信自体がブロックされる（AIではなくパターンマッチング）。" },
+                    { step: "3", title: "サニタイズ", desc: "悪意あるコード（XSS）を除去。安全なテキストのみ保存。" },
+                    { step: "4", title: "即時公開", desc: "フィルターを通過した意見はそのままMySQLに保存され、意見一覧に即時反映される。" },
+                    { step: "5", title: "管理者が事後確認", desc: "管理者は投稿されたすべての意見を確認し、問題があれば非表示または削除する。" },
                   ]
                 : [
                     { step: "1", title: "Submit", desc: "Student fills in the form and submits." },
-                    { step: "2", title: "Sanitize", desc: "Malicious code (XSS) is stripped. Only safe text is saved." },
-                    { step: "3", title: "Stored in Database", desc: "Opinion is written to MySQL with status 'pending'." },
-                    { step: "4", title: "Admin Review", desc: "Admin reviews content and approves if appropriate." },
-                    { step: "5", title: "Published", desc: "Approved opinions appear in the list and can be voted on." },
+                    { step: "2", title: "Content Filter", desc: "Automatically checks for personal info (email, phone) and harmful language. Rule-based pattern matching — not AI. Violations are blocked before submission." },
+                    { step: "3", title: "Sanitize", desc: "Malicious code (XSS) is stripped. Only safe text is saved." },
+                    { step: "4", title: "Instant Publish", desc: "Opinions that pass the filter are saved to MySQL and appear in the list immediately." },
+                    { step: "5", title: "Admin Post-Review", desc: "Admins review all published posts and hide or delete any that violate guidelines." },
                   ]
               ).map((item) => (
                 <div key={item.step} className="flex items-start gap-3">
