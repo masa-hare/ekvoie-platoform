@@ -49,11 +49,47 @@ const PII_BLOCK: RegExp[] = [
   /@[a-zA-Z0-9_.]{3,}/,
 ];
 
-const HARMFUL: RegExp[] = [
-  // Death threats / violence
-  /死[にね]|氏ね|しね|殺[すし]|ぶっ殺|消えろ/,
-  // Sexual violence
-  /レイプ|強姦/,
+/**
+ * Normalize text to neutralize common SNS filter-evasion techniques:
+ * - Full-width characters (Ａ→A, ！→!)
+ * - Katakana → hiragana (シネ→しね)
+ * - Long vowel mark removal (しーねー→しね)
+ * - Space/symbol/emoji insertion (し★ね, し ね, し*ね → しね)
+ */
+function normalizeForFilter(text: string): string {
+  let s = text;
+  // Full-width ASCII → half-width
+  s = s.replace(/[！-～]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  // Katakana → hiragana
+  s = s.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  // Remove long vowel marks, spaces, and common evasion characters
+  s = s.replace(/[\s\u3000ー\u30FC＊*・\-_～〜★☆◯○×✕]/g, "");
+  // Remove harmful-context emoji
+  s = s.replace(/[💀🔪☠️⚰️🖕]/g, "kill");
+  return s.toLowerCase();
+}
+
+// Patterns checked against ORIGINAL text (kanji-based)
+const HARMFUL_DIRECT: RegExp[] = [
+  /死[にね]|殺[すし]|ぶっ殺|強姦/,
+];
+
+// Patterns checked against NORMALIZED text (catches evasion via katakana/spaces/symbols)
+const HARMFUL_NORMALIZED: RegExp[] = [
+  // 死ね系: しね、シネ、し★ね、し ね、氏ね、しねしね など
+  /しね/,
+  // 失せろ・消えろ系
+  /うせろ|きえろ|きえな/,
+  // 殺す系: ころす、ぶっころ
+  /ころす|ぶっころ|ぶっとばす/,
+  // 存在否定系
+  /しにさらせ|しにやがれ|しにかけ|くたばれ|のろわれろ|いきるかちない|そんざいするな/,
+  // ドクシング（個人特定・晒し）脅迫
+  /さらしてやる|さらすぞ|とくていした|とくていするぞ|じゅうしょしらべ/,
+  // 性的暴力
+  /れいぷ|ごうかん/,
+  // 重度の侮辱表現
+  /きちがい|きもくてしぬ|ごみくず|しゃかいのごみ/,
 ];
 
 export type ContentCheckResult =
@@ -62,11 +98,22 @@ export type ContentCheckResult =
 
 export function checkContent(...texts: string[]): ContentCheckResult {
   const combined = texts.filter(Boolean).join(" ");
+
+  // PII check (on original text)
   for (const pattern of PII_BLOCK) {
     if (pattern.test(combined)) return { ok: false, type: "pii" };
   }
-  for (const pattern of HARMFUL) {
+
+  // Direct harmful check (kanji patterns on original text)
+  for (const pattern of HARMFUL_DIRECT) {
     if (pattern.test(combined)) return { ok: false, type: "harmful" };
   }
+
+  // Evasion-resistant check (on normalized text)
+  const normalized = normalizeForFilter(combined);
+  for (const pattern of HARMFUL_NORMALIZED) {
+    if (pattern.test(normalized)) return { ok: false, type: "harmful" };
+  }
+
   return { ok: true };
 }
