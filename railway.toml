@@ -4,5 +4,5 @@ buildCommand = "pnpm install --no-frozen-lockfile && pnpm build"
 
 [deploy]
 startCommand = "node dist/index.js"
-healthcheckPath = "/"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 300

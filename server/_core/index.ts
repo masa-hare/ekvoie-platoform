@@ -102,6 +102,12 @@ async function startServer() {
   app.use(express.json({ limit: "50kb" }));
   app.use(express.urlencoded({ limit: "50kb", extended: true }));
 
+  // Railway healthcheck target — must stay reachable without the site-access
+  // cookie, since Railway's own probe can't pass the shared-password gate.
+  app.get("/api/health", (_req, res) => {
+    res.status(200).send("ok");
+  });
+
   // Site-wide access gate (shared password) — this is a coarse "are you inside
   // the community" check, independent of and prior to admin/user auth below.
   // The login route is mounted BEFORE the gate middleware so it stays reachable
