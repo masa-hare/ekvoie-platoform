@@ -1,6 +1,6 @@
 import { eq, desc, and, sql, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { users, opinions, votes, categories, anonymousUsers, solutions, solutionVotes, deletionLogs, InsertOpinion, InsertVote, InsertSolution, InsertSolutionVote, InsertDeletionLog } from "../drizzle/schema";
+import { users, opinions, votes, categories, anonymousUsers, deletionLogs, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertUniversityView } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -182,118 +182,58 @@ export async function deleteOpinion(opinionId: number) {
   // Then delete the opinion
   await db.delete(opinions).where(eq(opinions.id, opinionId));
 }
-// Solution queries
-export async function createSolution(solution: InsertSolution) {
+// University view queries (institutional response, tied to a category)
+export async function getPublishedUniversityViews() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(solutions).values(solution);
-  return result;
-}
 
-export async function getSolutionsByOpinionId(opinionId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
   return await db
     .select()
-    .from(solutions)
-    .where(and(
-      eq(solutions.opinionId, opinionId),
-      eq(solutions.isVisible, true),
-      eq(solutions.approvalStatus, 'approved')
-    ))
-    .orderBy(desc(solutions.createdAt));
+    .from(universityViews)
+    .where(eq(universityViews.approvalStatus, "published"))
+    .orderBy(desc(universityViews.updatedAt));
 }
 
-export async function getPendingSolutions() {
+export async function getUniversityViewByCategoryId(categoryId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  return await db
-    .select()
-    .from(solutions)
-    .where(eq(solutions.approvalStatus, "pending"))
-    .orderBy(desc(solutions.createdAt));
-}
 
-export async function getSolutionById(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.select().from(solutions).where(eq(solutions.id, id));
-  return result[0] || null;
-}
-
-export async function updateSolution(id: number, updates: Partial<InsertSolution>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db.update(solutions).set(updates).where(eq(solutions.id, id));
-}
-
-export async function deleteSolution(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  // First delete related votes
-  await db.delete(solutionVotes).where(eq(solutionVotes.solutionId, id));
-  
-  // Then delete the solution
-  await db.delete(solutions).where(eq(solutions.id, id));
-}
-
-// Solution vote queries
-export async function createSolutionVote(vote: InsertSolutionVote) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db.insert(solutionVotes).values(vote);
-}
-
-export async function getSolutionVoteByUserAndSolution(anonymousUserId: number, solutionId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
   const result = await db
     .select()
-    .from(solutionVotes)
-    .where(and(eq(solutionVotes.anonymousUserId, anonymousUserId), eq(solutionVotes.solutionId, solutionId)));
-  
+    .from(universityViews)
+    .where(and(eq(universityViews.categoryId, categoryId), eq(universityViews.approvalStatus, "published")))
+    .limit(1);
+
   return result[0] || null;
 }
 
-export async function updateSolutionVote(id: number, voteType: "support" | "oppose" | "pass") {
+export async function getAllUniversityViews() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  await db.update(solutionVotes).set({ voteType }).where(eq(solutionVotes.id, id));
+
+  return await db.select().from(universityViews).orderBy(desc(universityViews.updatedAt));
 }
 
-export async function updateSolutionVoteCount(solutionId: number) {
+export async function createUniversityView(view: InsertUniversityView) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const supportCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(solutionVotes)
-    .where(and(eq(solutionVotes.solutionId, solutionId), eq(solutionVotes.voteType, "support")));
-  
-  const opposeCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(solutionVotes)
-    .where(and(eq(solutionVotes.solutionId, solutionId), eq(solutionVotes.voteType, "oppose")));
-  
-  const passCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(solutionVotes)
-    .where(and(eq(solutionVotes.solutionId, solutionId), eq(solutionVotes.voteType, "pass")));
-  
-  await db.update(solutions).set({
-    supportCount: Number(supportCount[0]?.count || 0),
-    opposeCount: Number(opposeCount[0]?.count || 0),
-    passCount: Number(passCount[0]?.count || 0),
-  }).where(eq(solutions.id, solutionId));
+
+  const result = await db.insert(universityViews).values(view);
+  return { insertId: Number((result as any)[0].insertId) };
+}
+
+export async function updateUniversityView(id: number, updates: Partial<InsertUniversityView>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(universityViews).set(updates).where(eq(universityViews.id, id));
+}
+
+export async function deleteUniversityView(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(universityViews).where(eq(universityViews.id, id));
 }
 
 // Analytics
@@ -303,9 +243,8 @@ export async function getAnalyticsStats() {
 
   const notFeedbackOpinion = sql`(${opinions.categoryId} IS NULL OR ${opinions.categoryId} NOT IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`;
   const notFeedbackVote = sql`${votes.opinionId} NOT IN (SELECT id FROM \`opinions\` WHERE categoryId IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`;
-  const notFeedbackSolution = sql`${solutions.opinionId} NOT IN (SELECT id FROM \`opinions\` WHERE categoryId IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`;
 
-  const [opinionAgg, solutionAgg, voterCount, categoryStats, topOpinions, weeklyTrend, submitterCount] =
+  const [opinionAgg, voterCount, categoryStats, weeklyTrend, submitterCount] =
     await Promise.all([
       // Opinion aggregation — フィードバックカテゴリーを除外
       db.select({
@@ -317,18 +256,12 @@ export async function getAnalyticsStats() {
         totalPass:    sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.passCount} else 0 end)`,
       }).from(opinions).where(notFeedbackOpinion),
 
-      // Solution aggregation — フィードバック意見の解決策を除外
-      db.select({
-        approved:     sql<number>`sum(case when ${solutions.approvalStatus}='approved' and ${solutions.isVisible}=1 then 1 else 0 end)`,
-        totalSupport: sql<number>`sum(${solutions.supportCount})`,
-      }).from(solutions).where(notFeedbackSolution),
-
       // Unique voters — フィードバック意見への投票を除外
       db.select({ count: sql<number>`count(distinct ${votes.anonymousUserId})` })
         .from(votes)
         .where(and(isNotNull(votes.anonymousUserId), notFeedbackVote)),
 
-      // Per-category breakdown — フィードバックカテゴリーを除外
+      // Per-category breakdown（分布の俯瞰用。順位付けには使わない）— フィードバックカテゴリーを除外
       db.select({
         categoryId: opinions.categoryId,
         count:      sql<number>`count(*)`,
@@ -338,19 +271,6 @@ export async function getAnalyticsStats() {
         .from(opinions)
         .where(and(eq(opinions.approvalStatus, "approved"), eq(opinions.isVisible, true), notFeedbackOpinion))
         .groupBy(opinions.categoryId),
-
-      // Top 5 most voted approved opinions — フィードバック除外
-      db.select({
-        id: opinions.id,
-        problemStatement: opinions.problemStatement,
-        agreeCount: opinions.agreeCount,
-        disagreeCount: opinions.disagreeCount,
-        passCount: opinions.passCount,
-      })
-        .from(opinions)
-        .where(and(eq(opinions.approvalStatus, "approved"), eq(opinions.isVisible, true), notFeedbackOpinion))
-        .orderBy(sql`${opinions.agreeCount} + ${opinions.disagreeCount} + ${opinions.passCount} desc`)
-        .limit(5),
 
       // Weekly submission trend — フィードバック除外
       db.select({
@@ -382,10 +302,6 @@ export async function getAnalyticsStats() {
       total: approvedOpinions,
       pending: Number(opinionAgg[0]?.pending || 0),
     },
-    solutions: {
-      total: Number(solutionAgg[0]?.approved || 0),
-      totalSupportVotes: Number(solutionAgg[0]?.totalSupport || 0),
-    },
     uniqueVoters: Number(voterCount[0]?.count || 0),
     uniqueSubmitters: Number(submitterCount[0]?.count || 0),
     votes: {
@@ -405,16 +321,6 @@ export async function getAnalyticsStats() {
           : 0,
       }))
       .sort((a, b) => b.count - a.count),
-    topOpinions: topOpinions.map(op => ({
-      id: op.id,
-      text: (op.problemStatement || "（内容なし）").slice(0, 50) +
-        ((op.problemStatement?.length || 0) > 50 ? "…" : ""),
-      totalVotes: op.agreeCount + op.disagreeCount + op.passCount,
-      agreeCount: op.agreeCount,
-      agreeRate: (op.agreeCount + op.disagreeCount + op.passCount) > 0
-        ? Math.round((op.agreeCount / (op.agreeCount + op.disagreeCount + op.passCount)) * 100)
-        : 0,
-    })),
     weeklyTrend: weeklyTrend.map(w => ({
       label: w.label,
       count: Number(w.count),

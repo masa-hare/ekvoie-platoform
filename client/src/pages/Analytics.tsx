@@ -2,9 +2,9 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import {
   BarChart3, TrendingUp, Users, MessageSquare,
-  CheckCircle2, Clock, Lightbulb, ThumbsUp, ArrowLeft,
+  Clock, ThumbsUp, ArrowLeft,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const L = {
@@ -13,15 +13,11 @@ const L = {
     error: "データの取得に失敗しました",
     back: "← ホームに戻る",
     title: "分析",
-    subtitle: "投稿・投票のリアルタイム統計",
+    subtitle: "投稿・投票の集計（分布の俯瞰用。順位付けではありません）",
     approvedOpinions: "承認済み意見",
     approvedOpinionsSub: "公開中の投稿",
     pending: "承認待ち",
     pendingSub: "審査中の投稿",
-    solutions: "解決策提案",
-    solutionsSub: "承認済みの提案",
-    solutionVotes: "解決策への投票",
-    solutionVotesSub: "支持票の合計",
     totalVotes: "総投票数",
     totalVotesSub: "全意見への投票",
     agreeRate: "平均賛成率",
@@ -35,13 +31,9 @@ const L = {
     disagree: "反対",
     pass: "パス",
     categoryTitle: "カテゴリー別",
-    categorySub: "承認済み意見の内訳",
+    categorySub: "承認済み意見の件数の内訳",
     noData: "データがありません",
     agreeRateLabel: "賛成",
-    topTitle: "注目意見 TOP 5",
-    topSub: "投票数が多い意見",
-    tooltipAgree: "賛成",
-    tooltipTotal: "合計投票",
     trendTitle: "投稿トレンド",
     trendSub: "過去5週間の日別投稿数",
     tooltipPosts: "投稿数",
@@ -51,15 +43,11 @@ const L = {
     error: "Failed to load data",
     back: "← Back to Home",
     title: "Analytics",
-    subtitle: "Real-time post and vote statistics",
+    subtitle: "Post and vote aggregates (a distribution overview, not a ranking)",
     approvedOpinions: "Approved Opinions",
     approvedOpinionsSub: "Published posts",
     pending: "Pending",
     pendingSub: "Awaiting review",
-    solutions: "Solutions",
-    solutionsSub: "Approved proposals",
-    solutionVotes: "Solution Votes",
-    solutionVotesSub: "Total support votes",
     totalVotes: "Total Votes",
     totalVotesSub: "Votes on all opinions",
     agreeRate: "Avg. Agree Rate",
@@ -73,13 +61,9 @@ const L = {
     disagree: "Disagree",
     pass: "Pass",
     categoryTitle: "By Category",
-    categorySub: "Approved opinions breakdown",
+    categorySub: "Approved opinion counts breakdown",
     noData: "No data available",
     agreeRateLabel: "Agree",
-    topTitle: "Top 5 Opinions",
-    topSub: "Most voted opinions",
-    tooltipAgree: "Agree",
-    tooltipTotal: "Total Votes",
     trendTitle: "Submission Trend",
     trendSub: "Daily posts over the past 5 weeks",
     tooltipPosts: "Posts",
@@ -172,14 +156,9 @@ export default function Analytics() {
         </div>
         <p className="text-gray-500 text-sm mb-8 ml-9">{l.subtitle}</p>
 
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-10">
           <StatCard title={l.approvedOpinions} value={stats.opinions.total.toLocaleString()} sub={l.approvedOpinionsSub} icon={MessageSquare} />
           <StatCard title={l.pending} value={stats.opinions.pending.toLocaleString()} sub={l.pendingSub} icon={Clock} />
-          <StatCard title={l.solutions} value={stats.solutions.total.toLocaleString()} sub={l.solutionsSub} icon={Lightbulb} />
-          <StatCard title={l.solutionVotes} value={stats.solutions.totalSupportVotes.toLocaleString()} sub={l.solutionVotesSub} icon={CheckCircle2} />
-        </div>
-
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-10">
           <StatCard title={l.totalVotes} value={totalVotes.toLocaleString()} sub={l.totalVotesSub} icon={BarChart3} />
           <StatCard title={l.agreeRate} value={`${agreeRate}%`} sub={l.agreeRateSub} icon={ThumbsUp} />
           <StatCard title={l.uniqueVoters} value={stats.uniqueVoters.toLocaleString()} sub={l.uniqueVotersSub} icon={Users} />
@@ -233,37 +212,6 @@ export default function Analytics() {
                   );
                 })}
               </div>
-            )}
-          </div>
-
-          <div className="brutalist-border p-6 bg-white">
-            <h2 className="text-sm font-black uppercase tracking-widest mb-1">{l.topTitle}</h2>
-            <p className="text-xs text-gray-500 mb-5">{l.topSub}</p>
-            {stats.topOpinions.length === 0 ? (
-              <p className="text-sm text-gray-400">{l.noData}</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={stats.topOpinions} layout="vertical" margin={{ left: 0, right: 24 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="text"
-                    width={120}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 14) + "…" : v}
-                  />
-                  <Tooltip
-                    formatter={(v: number, name: string) =>
-                      [v, name === "agreeCount" ? l.tooltipAgree : l.tooltipTotal]}
-                    labelFormatter={(label) => label}
-                  />
-                  <Bar dataKey="totalVotes" name={l.tooltipTotal} fill="#d1d5db">
-                    {stats.topOpinions.map((_, i) => (
-                      <Cell key={i} fill={i === 0 ? "#000" : i === 1 ? "#374151" : "#9ca3af"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
             )}
           </div>
 

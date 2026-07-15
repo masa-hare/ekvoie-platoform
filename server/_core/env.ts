@@ -3,6 +3,7 @@ export const ENV = {
   cookieSecret: process.env.JWT_SECRET ?? "",
   databaseUrl: process.env.DATABASE_URL ?? "",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
+  siteAccessPassword: process.env.SITE_ACCESS_PASSWORD ?? "",
   isProduction: process.env.NODE_ENV === "production",
 };
 
@@ -13,6 +14,7 @@ export function validateEnv(): void {
   if (!ENV.cookieSecret) missing.push("JWT_SECRET");
   if (!ENV.databaseUrl) missing.push("DATABASE_URL");
   if (!ENV.adminPassword) missing.push("ADMIN_PASSWORD");
+  if (!ENV.siteAccessPassword) missing.push("SITE_ACCESS_PASSWORD");
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }

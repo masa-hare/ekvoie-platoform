@@ -55,7 +55,7 @@ export const appRouter = router({
         const anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
 
         // Strip HTML tags before storage
-        const cleanProblem = sanitizeInput(input.problemStatement);
+        const cleanProblem = sanitizeInput(input.problemStatement ?? "");
         const cleanSolution = sanitizeInput(input.solutionProposal);
 
         // Pre-submission content check
@@ -222,11 +222,6 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Get pending solutions (admin only)
-    getPendingSolutions: adminProcedure.query(async () => {
-      return await db.getPendingSolutions();
-    }),
-
     // Approve opinion (admin only)
     approveOpinion: adminProcedure
       .input(
@@ -359,177 +354,78 @@ export const appRouter = router({
       }),
   }),
 
-  solutions: router({
-    // Create a new solution proposal
-    create: publicProcedure
-      .input(
-        z.object({
-          opinionId: z.number().int().positive(),
-          title: z.string().trim().min(10).max(200),
-          description: z.string().trim().min(10).max(1000),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        // Apply rate limiting (skip in test environment)
-        if (process.env.NODE_ENV !== "test") {
-          await new Promise<void>((resolve, reject) => {
-            opinionSubmitLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
-              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many submissions. Please wait 1 minute before submitting again." }));
-              else resolve();
-            });
-          });
-        }
+  // 大学側の課題認識(カテゴリ単位)。承認はオフライン運用 — 管理者が大学側からのOKを
+  // サイト外で得たうえで draft→published をトグルする。アプリ内承認フローは持たない。
+  universityViews: router({
+    // Published views for the public contrast view, keyed by category
+    list: publicProcedure.query(async () => {
+      return await db.getPublishedUniversityViews();
+    }),
 
-        // Get or create anonymous user ID for solution creation
-        let anonymousUserId = ctx.anonymousUserId;
-        if (!anonymousUserId) {
-          anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
-        }
-
-        // Strip HTML tags before storage
-        const cleanTitle = sanitizeInput(input.title);
-        const cleanDescription = sanitizeInput(input.description);
-
-        // Pre-submission content check
-        const check = checkContent(cleanTitle, cleanDescription);
-        if (!check.ok) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : "CONTENT_VIOLATION_HARMFUL",
-          });
-        }
-
-        await db.createSolution({
-          opinionId: input.opinionId,
-          title: cleanTitle,
-          description: cleanDescription,
-          anonymousUserId,
-          approvalStatus: "approved",
-        });
-
-        return { success: true };
-      }),
-
-    // Get solutions for an opinion
-    getByOpinionId: publicProcedure
-      .input(
-        z.object({
-          opinionId: z.number(),
-        })
-      )
+    getByCategoryId: publicProcedure
+      .input(z.object({ categoryId: z.number().int().positive() }))
       .query(async ({ input }) => {
-        return await db.getSolutionsByOpinionId(input.opinionId);
+        return await db.getUniversityViewByCategoryId(input.categoryId);
       }),
+  }),
 
-    // Vote on a solution
-    vote: publicProcedure
+  // Admin procedures for university views (draft authoring + publish toggle)
+  admin_universityViews: router({
+    list: adminProcedure.query(async () => {
+      return await db.getAllUniversityViews();
+    }),
+
+    create: adminProcedure
       .input(
         z.object({
-          solutionId: z.number().int().positive(),
-          voteType: z.enum(["support", "oppose", "pass"]),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        // Apply rate limiting (skip in test environment)
-        if (process.env.NODE_ENV !== "test") {
-          await new Promise<void>((resolve, reject) => {
-            voteLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
-              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many votes. Please slow down." }));
-              else resolve();
-            });
-          });
-        }
-
-        // Get or create anonymous user ID for solution voting (only creates on vote action)
-        let anonymousUserId = ctx.anonymousUserId;
-        if (!anonymousUserId) {
-          anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
-        }
-
-        // Check if user has already voted
-        const existingVote = await db.getSolutionVoteByUserAndSolution(
-          anonymousUserId,
-          input.solutionId
-        );
-
-        if (existingVote) {
-          // Update existing vote
-          await db.updateSolutionVote(existingVote.id, input.voteType);
-        } else {
-          // Create new vote
-          await db.createSolutionVote({
-            solutionId: input.solutionId,
-            anonymousUserId,
-            voteType: input.voteType,
-          });
-        }
-
-        // Update vote counts
-        await db.updateSolutionVoteCount(input.solutionId);
-
-        return { success: true };
-      }),
-
-    // Approve solution (admin only)
-    approve: adminProcedure
-      .input(
-        z.object({
-          solutionId: z.number(),
+          categoryId: z.number().int().positive(),
+          body: z.string().trim().min(1).max(2000),
+          responseStatus: z.enum(["answered", "checking", "cannot_answer"]),
+          reason: z.string().trim().max(1000).optional(),
         })
       )
       .mutation(async ({ input }) => {
-        await db.updateSolution(input.solutionId, {
-          approvalStatus: "approved",
-        });
-
-        return { success: true };
-      }),
-
-    // Reject solution (admin only)
-    reject: adminProcedure
-      .input(
-        z.object({
-          solutionId: z.number(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await db.updateSolution(input.solutionId, {
-          approvalStatus: "rejected",
-        });
-
-        return { success: true };
-      }),
-
-    // Delete solution (admin only)
-    delete: adminProcedure
-      .input(
-        z.object({
-          solutionId: z.number(),
-          reason: z.string().optional(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        // 削除前に解決策内容を取得
-        const solution = await db.getSolutionById(input.solutionId);
-        if (!solution) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Solution not found",
-          });
+        if (input.responseStatus === "cannot_answer" && !input.reason?.trim()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "REASON_REQUIRED_FOR_CANNOT_ANSWER" });
         }
-
-        const solutionPreview = scrubPII(
-          (solution.title || solution.description || "").slice(0, 50)
-        );
-        await db.createDeletionLog({
-          postType: "solution",
-          postId: input.solutionId,
-          content: JSON.stringify({ preview: solutionPreview, opinionId: solution.opinionId }),
+        const result = await db.createUniversityView({
+          categoryId: input.categoryId,
+          body: input.body,
+          responseStatus: input.responseStatus,
           reason: input.reason || null,
-          deletedBy: ctx.user.id,
+          approvalStatus: "draft",
         });
+        return { success: true, insertId: result.insertId };
+      }),
 
-        await db.deleteSolution(input.solutionId);
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          body: z.string().trim().min(1).max(2000).optional(),
+          responseStatus: z.enum(["answered", "checking", "cannot_answer"]).optional(),
+          reason: z.string().trim().max(1000).optional().nullable(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...updates } = input;
+        await db.updateUniversityView(id, updates);
+        return { success: true };
+      }),
+
+    // Toggle draft/published — flip this only after the university side has
+    // confirmed the content off-site (email, meeting, internal chat, etc.)
+    setApprovalStatus: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), approvalStatus: z.enum(["draft", "published"]) }))
+      .mutation(async ({ input }) => {
+        await db.updateUniversityView(input.id, { approvalStatus: input.approvalStatus });
+        return { success: true };
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        await db.deleteUniversityView(input.id);
         return { success: true };
       }),
   }),

@@ -35,8 +35,7 @@
 - **categories**: 個人情報なし
 - **votes**: anonymousUserIdのみ（上記1.2と同じ対応）
 - **opinionGroups**: 個人情報なし
-- **solutions**: anonymousUserIdのみ（上記1.2と同じ対応）
-- **solutionVotes**: anonymousUserIdのみ（上記1.2と同じ対応）
+- **universityViews**: 個人情報なし（大学側が作成する管理者コンテンツ。学生の個人情報は含まない）
 
 ## 2. APIの個人情報読み書き一覧
 

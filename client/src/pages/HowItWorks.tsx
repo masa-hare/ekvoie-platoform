@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, MessageSquare, Lightbulb, Vote, Eye } from "lucide-react";
+import { ArrowLeft, MessageSquare, Vote, Scale, Eye } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function HowItWorks() {
@@ -17,13 +17,13 @@ export default function HowItWorks() {
       description: t("howItWorks.step1Desc"),
     },
     {
-      icon: Lightbulb,
+      icon: Vote,
       title: t("howItWorks.step2Title"),
       subtitle: t("howItWorks.step2Subtitle"),
       description: t("howItWorks.step2Desc"),
     },
     {
-      icon: Vote,
+      icon: Scale,
       title: t("howItWorks.step3Title"),
       subtitle: t("howItWorks.step3Subtitle"),
       description: t("howItWorks.step3Desc"),
@@ -128,7 +128,7 @@ export default function HowItWorks() {
             <h2 className="text-3xl sm:text-5xl font-black uppercase">READY TO START?</h2>
           </div>
           <p className="text-base sm:text-xl font-semibold mb-6 md:mb-8 max-w-2xl mx-auto">
-            {ja ? "あなたの声を構造化し、大学を変える力に変えましょう。" : "Structure your voice and turn it into a force for change at your university."}
+            {ja ? "あなたの声を、大学の見解と並べて見える形にしましょう。" : "Put your voice on record, side by side with the university's view."}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button

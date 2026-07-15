@@ -109,49 +109,12 @@ export type OpinionGroup = typeof opinionGroups.$inferSelect;
 export type InsertOpinionGroup = typeof opinionGroups.$inferInsert;
 
 /**
- * Solutions proposed for opinions (大学が実行できる行動)
- */
-export const solutions = mysqlTable("solutions", {
-  id: int("id").autoincrement().primaryKey(),
-  opinionId: int("opinionId").notNull(),
-  title: varchar("title", { length: 200 }).notNull(), // 解決策のタイトル
-  description: text("description").notNull(), // 詳細説明
-  createdBy: int("createdBy"), // 提案者（管理者または匿名ユーザー）
-  anonymousUserId: int("anonymousUserId"), // 匿名ユーザーの場合
-  approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  isVisible: boolean("isVisible").default(true).notNull(),
-  supportCount: int("supportCount").default(0).notNull(),
-  opposeCount: int("opposeCount").default(0).notNull(),
-  passCount: int("passCount").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Solution = typeof solutions.$inferSelect;
-export type InsertSolution = typeof solutions.$inferInsert;
-
-/**
- * Vote records for solutions
- */
-export const solutionVotes = mysqlTable("solution_votes", {
-  id: int("id").autoincrement().primaryKey(),
-  solutionId: int("solutionId").notNull(),
-  anonymousUserId: int("anonymousUserId").notNull(),
-  voteType: mysqlEnum("voteType", ["support", "oppose", "pass"]).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export type SolutionVote = typeof solutionVotes.$inferSelect;
-export type InsertSolutionVote = typeof solutionVotes.$inferInsert;
-
-/**
  * Deletion logs for moderation transparency
- * Stores information about hidden/deleted opinions and solutions
+ * Stores information about hidden/deleted opinions
  */
 export const deletionLogs = mysqlTable("deletion_logs", {
   id: int("id").autoincrement().primaryKey(),
-  postType: mysqlEnum("postType", ["opinion", "solution"]).notNull(),
+  postType: mysqlEnum("postType", ["opinion"]).notNull(),
   postId: int("postId").notNull(),
   content: text("content").notNull(),
   reason: text("reason"),
@@ -161,3 +124,26 @@ export const deletionLogs = mysqlTable("deletion_logs", {
 
 export type DeletionLog = typeof deletionLogs.$inferSelect;
 export type InsertDeletionLog = typeof deletionLogs.$inferInsert;
+
+/**
+ * University's stated position on a category of student opinions.
+ * Tied to a category (not individual opinions) so the matching between
+ * student voice and institutional response stays at the coarse,
+ * disclosable granularity of category design rather than an arbitrary
+ * per-opinion pairing.
+ */
+export const universityViews = mysqlTable("university_views", {
+  id: int("id").autoincrement().primaryKey(),
+  categoryId: int("categoryId").notNull(),
+  body: text("body").notNull(), // 大学側の課題認識・制約の説明
+  responseStatus: mysqlEnum("responseStatus", ["answered", "checking", "cannot_answer"])
+    .default("checking")
+    .notNull(),
+  reason: text("reason"), // cannot_answer のとき必須（構造上の制約と動かせる余地）
+  approvalStatus: mysqlEnum("approvalStatus", ["draft", "published"]).default("draft").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UniversityView = typeof universityViews.$inferSelect;
+export type InsertUniversityView = typeof universityViews.$inferInsert;

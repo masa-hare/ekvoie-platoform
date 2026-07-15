@@ -3,9 +3,17 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Download, Trash2, X, History, Tag, Plus } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Download, Trash2, X, History, Tag, Plus, Landmark, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +26,233 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+type ResponseStatus = "answered" | "checking" | "cannot_answer";
+
+function UniversityViewsSection({ ja }: { ja: boolean }) {
+  const { data: categories } = trpc.opinions.getCategories.useQuery();
+  const { data: views, refetch } = trpc.admin_universityViews.list.useQuery();
+  const createMutation = trpc.admin_universityViews.create.useMutation();
+  const updateMutation = trpc.admin_universityViews.update.useMutation();
+  const setApprovalMutation = trpc.admin_universityViews.setApprovalStatus.useMutation();
+  const deleteMutation = trpc.admin_universityViews.delete.useMutation();
+
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [draftBody, setDraftBody] = useState("");
+  const [draftStatus, setDraftStatus] = useState<ResponseStatus>("checking");
+  const [draftReason, setDraftReason] = useState("");
+
+  const statusLabels: Record<ResponseStatus, string> = {
+    answered: ja ? "回答済み" : "Answered",
+    checking: ja ? "確認中" : "Checking",
+    cannot_answer: ja ? "回答できない" : "Cannot answer",
+  };
+
+  const viewsByCategory = new Map((views ?? []).map(v => [v.categoryId, v]));
+
+  const startEditing = (categoryId: number) => {
+    const existing = viewsByCategory.get(categoryId);
+    setEditingCategoryId(categoryId);
+    setDraftBody(existing?.body ?? "");
+    setDraftStatus((existing?.responseStatus as ResponseStatus) ?? "checking");
+    setDraftReason(existing?.reason ?? "");
+  };
+
+  const cancelEditing = () => {
+    setEditingCategoryId(null);
+    setDraftBody("");
+    setDraftReason("");
+  };
+
+  const handleSave = async (categoryId: number) => {
+    if (!draftBody.trim()) {
+      toast.error(ja ? "内容を入力してください" : "Please enter the content");
+      return;
+    }
+    if (draftStatus === "cannot_answer" && !draftReason.trim()) {
+      toast.error(
+        ja
+          ? "「回答できない」の場合は理由（制約と動かせる余地）を入力してください"
+          : "Please explain the constraint and any room to move for 'cannot answer'"
+      );
+      return;
+    }
+
+    try {
+      const existing = viewsByCategory.get(categoryId);
+      if (existing) {
+        await updateMutation.mutateAsync({
+          id: existing.id,
+          body: draftBody.trim(),
+          responseStatus: draftStatus,
+          reason: draftStatus === "cannot_answer" ? draftReason.trim() : null,
+        });
+      } else {
+        await createMutation.mutateAsync({
+          categoryId,
+          body: draftBody.trim(),
+          responseStatus: draftStatus,
+          reason: draftStatus === "cannot_answer" ? draftReason.trim() : undefined,
+        });
+      }
+      toast.success(ja ? "保存しました（下書き）" : "Saved (draft)");
+      cancelEditing();
+      refetch();
+    } catch (error) {
+      console.error("Save university view error:", error);
+      toast.error(ja ? "保存に失敗しました" : "Failed to save");
+    }
+  };
+
+  const handleTogglePublish = async (id: number, current: "draft" | "published") => {
+    const next = current === "draft" ? "published" : "draft";
+    if (next === "published" && !confirm(
+      ja
+        ? "大学側から公開OKをオフラインで確認済みですか？公開すると学生に表示されます。"
+        : "Have you confirmed off-site that the university side is OK with publishing this? It will become visible to students."
+    )) {
+      return;
+    }
+    try {
+      await setApprovalMutation.mutateAsync({ id, approvalStatus: next });
+      toast.success(next === "published" ? (ja ? "公開しました" : "Published") : (ja ? "下書きに戻しました" : "Reverted to draft"));
+      refetch();
+    } catch (error) {
+      console.error("Toggle publish error:", error);
+      toast.error(ja ? "更新に失敗しました" : "Failed to update");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm(ja ? "この大学見解を削除しますか？" : "Delete this university view?")) return;
+    try {
+      await deleteMutation.mutateAsync({ id });
+      toast.success(ja ? "削除しました" : "Deleted");
+      refetch();
+    } catch (error) {
+      console.error("Delete university view error:", error);
+      toast.error(ja ? "削除に失敗しました" : "Failed to delete");
+    }
+  };
+
+  return (
+    <div className="brutalist-border-thick p-4 sm:p-8 mb-6 md:mb-12">
+      <div className="brutalist-underline inline-flex items-center gap-3 mb-3">
+        <Landmark className="w-6 h-6" />
+        <h3 className="text-xl sm:text-3xl font-black uppercase">
+          {ja ? "大学の見解" : "University Views"}
+        </h3>
+      </div>
+      <p className="text-sm text-muted-foreground font-semibold mb-6 max-w-2xl">
+        {ja
+          ? "承認はオフライン運用です。ここでの「公開」ボタンは、大学側からサイト外（メール・対面・学内チャット等）でOKを得た後にのみ押してください。"
+          : "Approval happens off-site. Only click Publish here after the university side has confirmed OK outside this tool (email, meeting, internal chat, etc.)."}
+      </p>
+
+      <div className="space-y-4">
+        {categories?.map((cat) => {
+          const view = viewsByCategory.get(cat.id);
+          const isEditing = editingCategoryId === cat.id;
+          return (
+            <div key={cat.id} className="border-2 border-black p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 font-bold">
+                  <span>{cat.name}</span>
+                  {view && (
+                    <>
+                      <span className={`text-xs font-black px-1.5 py-0.5 border-2 ${view.approvalStatus === "published" ? "border-green-700 text-green-700" : "border-gray-400 text-gray-500"}`}>
+                        {view.approvalStatus === "published" ? (ja ? "公開中" : "Published") : (ja ? "下書き" : "Draft")}
+                      </span>
+                      <span className="text-xs font-black px-1.5 py-0.5 border-2 border-black">
+                        {statusLabels[view.responseStatus as ResponseStatus]}
+                      </span>
+                    </>
+                  )}
+                </div>
+                {!isEditing && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="brutalist-border font-bold" onClick={() => startEditing(cat.id)}>
+                      <Pencil className="w-4 h-4 mr-1" />
+                      {view ? (ja ? "編集" : "Edit") : (ja ? "作成" : "Create")}
+                    </Button>
+                    {view && (
+                      <>
+                        <Button size="sm" variant="outline" className="brutalist-border font-bold" onClick={() => handleTogglePublish(view.id, view.approvalStatus as "draft" | "published")}>
+                          {view.approvalStatus === "published" ? (ja ? "下書きに戻す" : "Unpublish") : (ja ? "公開する" : "Publish")}
+                        </Button>
+                        <Button size="sm" variant="outline" className="brutalist-border font-bold text-red-600 hover:bg-red-600 hover:text-white" onClick={() => handleDelete(view.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">
+                      {ja ? "課題認識・内容" : "Content"}
+                    </label>
+                    <Textarea
+                      value={draftBody}
+                      onChange={(e) => setDraftBody(e.target.value)}
+                      className="brutalist-border font-semibold min-h-[100px]"
+                      placeholder={ja ? "大学側の課題認識・制約の説明" : "The university's understanding of the issue and its constraints"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">
+                      {ja ? "回答ステータス" : "Response status"}
+                    </label>
+                    <Select value={draftStatus} onValueChange={(v) => setDraftStatus(v as ResponseStatus)}>
+                      <SelectTrigger className="brutalist-border font-bold w-full sm:w-56">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="answered">{statusLabels.answered}</SelectItem>
+                        <SelectItem value="checking">{statusLabels.checking}</SelectItem>
+                        <SelectItem value="cannot_answer">{statusLabels.cannot_answer}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {draftStatus === "cannot_answer" && (
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground mb-1">
+                        {ja ? "理由（構造上の制約と、動かせる余地）" : "Reason (the constraint, and any room to move)"}
+                      </label>
+                      <Textarea
+                        value={draftReason}
+                        onChange={(e) => setDraftReason(e.target.value)}
+                        className="brutalist-border font-semibold min-h-[80px]"
+                        placeholder={ja ? "例：Xができないのは〔制約〕のため。ただしYの範囲でなら動ける" : "e.g., X isn't possible because of [constraint], but we can move within Y"}
+                      />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="brutalist-border font-black uppercase" onClick={() => handleSave(cat.id)}>
+                      {ja ? "保存（下書き）" : "Save (draft)"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="brutalist-border font-bold" onClick={cancelEditing}>
+                      {ja ? "キャンセル" : "Cancel"}
+                    </Button>
+                  </div>
+                </div>
+              ) : view ? (
+                <p className="text-sm whitespace-pre-wrap">{view.body}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground font-semibold">
+                  {ja ? "まだ見解が作成されていません" : "No view created yet"}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function Admin() {
   const { user, isAuthenticated } = useAuth();
@@ -280,6 +515,8 @@ export default function Admin() {
           )}
         </div>
 
+        <UniversityViewsSection ja={ja} />
+
         {/* Opinions list */}
         <div className="brutalist-border-thick p-4 sm:p-8">
           <div className="brutalist-underline inline-block mb-6 sm:mb-8">
@@ -352,9 +589,9 @@ export default function Admin() {
                     </div>
                   )}
                   
-                  {/* Solution */}
+                  {/* Opinion body */}
                   <div className="mb-4">
-                    <span className="text-xs font-bold text-muted-foreground uppercase">{ja ? "解決策" : "Solution"}</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase">{ja ? "意見本文" : "Opinion"}</span>
                     <p className="text-base sm:text-lg font-semibold mt-1">{opinion.transcription}</p>
                   </div>
 
@@ -448,7 +685,7 @@ export default function Admin() {
                   return (
                     <div key={log.id} className="border-2 border-black p-4 bg-gray-50">
                       <div className="text-xs font-bold text-muted-foreground mb-1">
-                        {log.postType === "opinion" ? (ja ? "意見" : "Opinion") : (ja ? "解決策" : "Solution")} #{log.postId}
+                        {ja ? "意見" : "Opinion"} #{log.postId}
                         {" · "}
                         {new Date(log.deletedAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}
                       </div>

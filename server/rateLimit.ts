@@ -67,3 +67,16 @@ export const adminLoginLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? req.socket?.remoteAddress ?? "unknown",
   validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
+
+/**
+ * Site-access (shared password) login rate limiter — same shape as admin login.
+ */
+export const siteAccessLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: "Too many login attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? req.socket?.remoteAddress ?? "unknown",
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
+});

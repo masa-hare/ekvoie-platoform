@@ -1,8 +1,8 @@
 # Student Voice Platform / 学生ボイスプラットフォーム
 
-A bilingual (Japanese/English) anonymous student opinion platform with voting, post-moderation, and analytics — built for universities and educational institutions.
+A bilingual (Japanese/English) platform that visualizes anonymous student opinions and places them alongside the university's own view, category by category — narrowing the information gap between students and administration. Not a ranking or decision-making tool: there is no vote-based ranking, and no solution-proposal/voting feature.
 
-匿名で学生の意見を投稿・集計・可視化できる、日本語/英語対応のプラットフォームです。大学・教育機関向けに設計されており、投稿前コンテンツフィルター・事後モデレーション・分析ダッシュボードを備えています。
+学生の匿名の意見を可視化し、カテゴリーごとに大学側の見解と並べて表示することで、学生と大学の間の情報の非対称性を縮めるための日本語/英語対応プラットフォームです。意思決定や順位付けのためのツールではありません — 投票によるランキング機能や、解決策の投稿・投票機能はありません。
 
 ---
 
@@ -10,13 +10,14 @@ A bilingual (Japanese/English) anonymous student opinion platform with voting, p
 
 | English | 日本語 |
 |---------|--------|
-| **Anonymous posting** — students post problems and proposed solutions without accounts | **匿名投稿** — アカウント不要で問題・解決策を投稿できます |
-| **Agree / Disagree / Pass voting** — vote on opinions and solution proposals | **賛成・反対・パス投票** — 意見と解決策の両方に投票できます |
+| **Anonymous posting** — students post opinions without accounts | **匿名投稿** — アカウント不要で意見を投稿できます |
+| **Agree / Disagree / Pass voting** — a signal of resonance, not a ranking; there is no vote-based sorting or "top opinion" highlighting | **賛成・反対・パス投票** — 順位付けではなく共感の可視化。投票数による並び替えや「トップ意見」の強調表示はありません |
+| **Category contrast view** — student opinions shown side by side with the university's view for that category (answered / checking / cannot answer, with reason) | **カテゴリー対照表示** — カテゴリーごとに学生の意見と大学側の見解（回答済み・確認中・回答できない＋理由）を並べて表示 |
+| **Site-wide access gate** — the whole site sits behind a shared password distributed internally | **サイト全体のアクセスゲート** — サイト全体が学内配布の共有パスワードで保護されています |
 | **Content filter** — rule-based (not AI) pre-submission filter blocks personal info and harmful language | **コンテンツフィルター** — 投稿前に個人情報・有害表現をルールベースで自動ブロック（AIは使用していません） |
 | **Post-moderation** — posts publish instantly; admins hide or delete problematic content after the fact | **事後モデレーション** — 投稿は即時公開。管理者が事後確認し、問題投稿を非表示または削除 |
-| **Analytics dashboard** — real-time vote stats, category breakdown, top opinions | **分析ダッシュボード** — リアルタイムの投票統計、カテゴリー別集計、上位意見を表示 |
+| **Analytics dashboard** — vote and category distribution stats (an overview, not a ranking) | **分析ダッシュボード** — 投票・カテゴリー別の集計(分布の俯瞰用であり、順位付けではありません) |
 | **Bilingual UI** — Japanese / English toggle, persisted in localStorage | **日英バイリンガルUI** — 日本語/英語の切り替えに対応（localStorage に保存） |
-| **Solution proposals** — community members can propose solutions; best solution is highlighted | **解決策提案** — コミュニティメンバーが解決策を提案でき、最も支持された案が強調表示されます |
 | **Rate limiting & XSS protection** — built-in security on all endpoints | **レート制限・XSS対策** — 全エンドポイントにセキュリティ対策を実装済み |
 | **CSV export** — export all opinions from the admin panel | **CSVエクスポート** — 管理パネルから全意見をエクスポートできます |
 | **Mobile-friendly** — responsive layout for all screen sizes | **モバイル対応** — あらゆる画面サイズに対応したレスポンシブレイアウト |
@@ -70,6 +71,7 @@ Edit `.env` / `.env` を編集:
 DATABASE_URL=mysql://user:password@localhost:3306/student_voice
 JWT_SECRET=your-random-secret-at-least-64-chars
 ADMIN_PASSWORD=your-admin-password
+SITE_ACCESS_PASSWORD=your-site-access-password
 NODE_ENV=development
 ```
 
@@ -138,6 +140,7 @@ In your project: **+ New** → **Database** → **Add MySQL**
 | Variable / 変数名 | Value / 値 |
 |----------|-------|
 | `ADMIN_PASSWORD` | 管理パネルのパスワード |
+| `SITE_ACCESS_PASSWORD` | サイト全体へのアクセスパスワード（学内チャットなどで配布） |
 | `JWT_SECRET` | ランダムな秘密文字列（64文字以上） |
 
 Generate a secret / シークレットの生成:
@@ -154,12 +157,12 @@ Railway auto-deploys on every push to `main`. Database migrations run automatica
 
 ## Admin Panel / 管理パネル
 
-Access the admin panel at `/admin-login`.
-管理パネルへは `/admin-login` からアクセスしてください。
+Access the admin panel at `/admin/login` (behind the site-wide access gate).
+管理パネルへは `/admin/login` からアクセスしてください（サイト全体のアクセスゲートの内側にあります）。
 
 From the admin panel you can / 管理パネルでできること:
 - Hide or delete opinions / 意見の非表示・削除
-- Hide or delete solution proposals / 解決策提案の非表示・削除
+- Write and publish the university's view per category — draft first, then publish only after the university side has confirmed OK off-site / カテゴリーごとに大学の見解を作成・公開（承認はオフライン運用。ドラフトを作成し、大学側からサイト外でOKを得てから公開）
 - Export all data as CSV / 全データをCSVでエクスポート
 
 ---
@@ -171,6 +174,7 @@ From the admin panel you can / 管理パネルでできること:
 | `DATABASE_URL` | ✅ | MySQL接続文字列 |
 | `JWT_SECRET` | ✅ | セッショントークン署名用のシークレット |
 | `ADMIN_PASSWORD` | ✅ | 管理パネルのログインパスワード |
+| `SITE_ACCESS_PASSWORD` | ✅ | サイト全体のアクセスゲートの共有パスワード |
 | `NODE_ENV` | 自動 | Railwayが `production` に自動設定 |
 | `PORT` | 自動 | Railwayが自動設定 |
 

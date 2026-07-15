@@ -8,11 +8,13 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { apiLimiter, adminLoginLimiter } from "../rateLimit";
+import { apiLimiter, adminLoginLimiter, siteAccessLoginLimiter } from "../rateLimit";
 import { verifyAdminPassword, ADMIN_OPEN_ID } from "../adminAuth";
+import { verifySitePassword, SITE_ACCESS_OPEN_ID } from "../siteAccessAuth";
 import { sdk } from "./sdk";
 import { getSessionCookieOptions } from "./cookies";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, SITE_ACCESS_COOKIE_NAME } from "@shared/const";
+import { renderSiteAccessPage } from "./siteAccessPage";
 import { validateEnv } from "./env";
 import { addSseClient } from "../sse";
 import { migrate } from "drizzle-orm/mysql2/migrator";
@@ -99,6 +101,43 @@ async function startServer() {
   app.use(cookieParser());
   app.use(express.json({ limit: "50kb" }));
   app.use(express.urlencoded({ limit: "50kb", extended: true }));
+
+  // Site-wide access gate (shared password) — this is a coarse "are you inside
+  // the community" check, independent of and prior to admin/user auth below.
+  // The login route is mounted BEFORE the gate middleware so it stays reachable
+  // while ungated; every other route (API, assets, SPA shell) is gated after it.
+  app.post("/api/site-access/login", siteAccessLoginLimiter, async (req, res) => {
+    const { password } = req.body ?? {};
+    if (!password || typeof password !== "string" || !verifySitePassword(password)) {
+      if (password) await new Promise(r => setTimeout(r, 500));
+      res.status(401).send(renderSiteAccessPage({ error: true }));
+      return;
+    }
+
+    const ONE_YEAR_MS_ = 365 * 24 * 60 * 60 * 1000;
+    const token = await sdk.createSessionToken(SITE_ACCESS_OPEN_ID, {
+      name: "site-access",
+      expiresInMs: ONE_YEAR_MS_,
+    });
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(SITE_ACCESS_COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS_ });
+    res.redirect(303, "/");
+  });
+
+  app.use(async (req, res, next) => {
+    const token = req.cookies?.[SITE_ACCESS_COOKIE_NAME];
+    const session = await sdk.verifySession(token);
+    if (session?.openId === SITE_ACCESS_OPEN_ID) {
+      next();
+      return;
+    }
+
+    if (req.path.startsWith("/api/")) {
+      res.status(401).json({ error: "SITE_ACCESS_REQUIRED" });
+      return;
+    }
+    res.status(401).send(renderSiteAccessPage());
+  });
 
   // Admin login endpoint — password-based, no personal info required
   app.post("/api/admin/login", adminLoginLimiter, async (req, res) => {

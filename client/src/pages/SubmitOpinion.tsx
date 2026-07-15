@@ -251,7 +251,7 @@ export default function SubmitOpinion() {
                   className="brutalist-border font-semibold min-h-[80px] sm:min-h-[100px] text-base sm:text-lg resize-none"
                 />
                 <div className="text-xs sm:text-sm font-bold text-muted-foreground mt-1">
-                  {language === "ja" ? "任意：大学が実行できる解決策を提案しやすくなります" : "Optional: helps proposers suggest actionable solutions."}
+                  {language === "ja" ? "任意：背景があると状況を伝えやすくなります" : "Optional: context helps others understand the situation."}
                 </div>
               </div>
 
@@ -292,7 +292,7 @@ export default function SubmitOpinion() {
                   )}
                   {!solutionText.trim() && (
                     <p className="text-sm font-bold text-red-600">
-                      {language === "ja" ? "・解決策を入力してください" : "· Please enter a proposed solution"}
+                      {language === "ja" ? "・意見を入力してください" : "· Please enter your opinion"}
                     </p>
                   )}
                 </div>

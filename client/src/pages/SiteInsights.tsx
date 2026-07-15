@@ -213,8 +213,8 @@ export default function SiteInsights() {
       label: ja ? "データベース" : "Database",
       tech: "MySQL + Drizzle ORM",
       desc: ja
-        ? "意見・投票・カテゴリー・解決策などすべてのデータを永続保存。Drizzleが型安全なSQL操作を担当。"
-        : "Stores all opinions, votes, categories, and solutions. Drizzle provides type-safe SQL operations.",
+        ? "意見・投票・カテゴリー・大学の見解などすべてのデータを永続保存。Drizzleが型安全なSQL操作を担当。"
+        : "Stores all opinions, votes, categories, and university views. Drizzle provides type-safe SQL operations.",
     },
     {
       label: ja ? "認証" : "Auth",
@@ -266,19 +266,17 @@ export default function SiteInsights() {
             <ul className="space-y-2 text-gray-700 text-sm">
               {(ja
                 ? [
-                    "匿名で意見・解決策を投稿（アカウント不要）",
-                    "賛成・反対・パスの3択で投票",
-                    "他のユーザーが解決策を追加提案",
-                    "投票数・賛成率をリアルタイムで可視化",
+                    "匿名で意見を投稿（アカウント不要）",
+                    "賛成・反対・パスの3択で投票（順位付けや「ベスト意見」の選出はしない）",
+                    "カテゴリーごとに学生の声と大学の見解を並べて表示",
                     "投稿前に個人情報・有害表現を自動ブロック（AIではなくルールベースのフィルター）",
                     "投稿は即時公開、管理者が事後確認して問題投稿を削除",
                     "日本語・英語の2言語に対応",
                   ]
                 : [
                     "Post anonymously — no account needed",
-                    "Vote: agree, disagree, or pass",
-                    "Others can add solution proposals",
-                    "Real-time vote counts and approval rates",
+                    "Vote: agree, disagree, or pass (no ranking or 'best opinion' selection)",
+                    "Student voice shown side by side with the university's view, by category",
                     "Pre-submission filter blocks personal info and harmful language (rule-based, not AI)",
                     "Posts publish instantly; admins review and remove problematic content after the fact",
                     "Japanese and English bilingual support",

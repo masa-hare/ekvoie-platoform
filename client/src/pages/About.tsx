@@ -13,7 +13,14 @@ export default function About() {
       purpose: {
         heading: "サイトの目的",
         content:
-          `本サイトは、${siteConfig.orgName.ja}の学生を主な対象として、学内に関する意見を匿名で投稿・共有することを目的とした掲示板型サイトです。本サイトは、特定の個人や団体を攻撃する場ではなく、学内の課題や提案を可視化することを目的としています。`,
+          `本サイトは、${siteConfig.orgName.ja}の学生の意見を可視化し、大学側の課題認識と並べて見えるようにすることで、両者の間の情報の非対称性を縮めるための場です。特定の個人や団体を攻撃する場ではありません。`,
+      },
+      doesNot: {
+        heading: "やらないこと",
+        items: [
+          "解決策の投稿や、投票による順位付けは行いません。「最も支持された意見・解決策」を選ぶ機能はありません。",
+          "学生の意見と大学の見解を並べて表示しますが、その対照が何を意味するかの解釈や意味づけは行いません。読む人に委ねます。",
+        ],
       },
       ai: {
         heading: "AIの利用について",
@@ -43,12 +50,27 @@ export default function About() {
         heading: "利用対象年齢",
         content: "本サービスは、原則として18歳以上の利用を想定しています。",
       },
+      responseStatus: {
+        heading: "「大学の見解」の回答ステータスについて",
+        intro: "カテゴリー別（対照）表示では、大学の見解に次の3つのいずれかのステータスが付きます。",
+        items: [
+          { label: "回答済み", desc: "大学側がそのカテゴリーの論点に応答を出しています。" },
+          { label: "確認中", desc: "論点は認識していますが、応答を準備中です。" },
+          { label: "回答できない", desc: "構造上の制約により、現時点では答えられません。必ず理由（何が制約で、どこまでなら動けるか）を添えます。「無視」ではなく、制約の所在を明示するためのラベルです。" },
+        ],
+        note: "すべての論点に回答が付くわけではありません。投票が多く集まった論点には優先的にラベルを付ける運用としています。",
+      },
       management: {
         heading: "運営・管理について",
         content1:
           `本サイトは、${siteConfig.orgName.ja}の学生有志により運営されています。`,
         content2:
-          "投稿内容の非表示・削除等は、運営方針に基づき管理者が行います。",
+          "投稿内容の非表示・削除等は、運営方針に基づき管理者が行います。「大学の見解」の公開は、大学側からサイト外でOKを得たうえで運営が行います。",
+      },
+      accessGate: {
+        heading: "アクセス制限について",
+        content:
+          "本サイトは、学内チャットで配布する共有パスワードにより、実務上の学内限定を担保しています。ただし共有パスワード方式には限界があり、パスワードが学外に漏れた場合、それを技術的に止めることはできません。「学内限定」であって「学外から絶対にアクセスできない」ことを保証するものではない点をご理解ください。",
       },
       disclaimer: {
         heading: "補足",
@@ -85,7 +107,14 @@ export default function About() {
       purpose: {
         heading: "Purpose of This Site",
         content:
-          `This site is a bulletin board platform primarily for students of ${siteConfig.orgName.en} to anonymously post and share opinions about campus matters. It is not a place to attack specific individuals or groups, but rather to visualize campus issues and proposals.`,
+          `This site visualizes ${siteConfig.orgName.en} students' opinions and places them alongside the university's own understanding of the issues, in order to narrow the information gap between the two. It is not a place to attack specific individuals or groups.`,
+      },
+      doesNot: {
+        heading: "What This Site Does Not Do",
+        items: [
+          "It does not accept solution proposals or rank opinions by vote count. There is no feature to select a 'most-supported' opinion or solution.",
+          "It places student opinions and the university's view side by side, but does not interpret what that juxtaposition means. That's left to the reader.",
+        ],
       },
       ai: {
         heading: "Use of AI",
@@ -115,12 +144,27 @@ export default function About() {
         heading: "Target Age",
         content: "This service is intended for users aged 18 and above.",
       },
+      responseStatus: {
+        heading: "About the University View's Response Status",
+        intro: "In the by-category (contrast) view, the university's view for each category carries one of three statuses.",
+        items: [
+          { label: "Answered", desc: "The university has issued a response to that category's issues." },
+          { label: "Checking", desc: "The university is aware of the issue and is preparing a response." },
+          { label: "Cannot Answer Right Now", desc: "A structural constraint prevents an answer at this time. A reason is always included — what the constraint is, and what room there is to move. This label states the boundary of what's possible; it is not a way of ignoring the issue." },
+        ],
+        note: "Not every issue receives a response. Issues that gather more votes are prioritized for a status label.",
+      },
       management: {
         heading: "Management and Administration",
         content1:
           `This site is operated by student volunteers from ${siteConfig.orgName.en}.`,
         content2:
-          "Hiding or deleting posted content is performed by administrators based on operational policies.",
+          "Hiding or deleting posted content is performed by administrators based on operational policies. University views are published only after the university side has confirmed approval off-site.",
+      },
+      accessGate: {
+        heading: "About Access Restriction",
+        content:
+          "This site is protected by a shared password distributed through internal chat, which provides a practical, in-community restriction. This method has limits: if the password leaks outside the community, there is no technical way to stop it. Please understand this as 'restricted to the community' rather than a guarantee that outside access is impossible.",
       },
       disclaimer: {
         heading: "Disclaimer",
@@ -185,6 +229,20 @@ export default function About() {
             </p>
           </section>
 
+          {/* やらないこと */}
+          <section className="bg-white rounded-lg p-6 shadow-sm border-2 border-black">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+              {text.doesNot.heading}
+            </h2>
+            <ul className="list-disc list-inside space-y-2 text-gray-700">
+              {text.doesNot.items.map((item, index) => (
+                <li key={index} className="leading-relaxed">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+
           {/* AIの利用について */}
           <section className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <h2 className="text-2xl font-semibold mb-4 text-gray-900">
@@ -229,6 +287,31 @@ export default function About() {
               {text.age.heading}
             </h2>
             <p className="text-gray-700 leading-relaxed">{text.age.content}</p>
+          </section>
+
+          {/* 回答ステータスについて */}
+          <section className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+              {text.responseStatus.heading}
+            </h2>
+            <p className="text-gray-700 leading-relaxed mb-4">{text.responseStatus.intro}</p>
+            <dl className="space-y-3 mb-4">
+              {text.responseStatus.items.map((item, index) => (
+                <div key={index} className="border-l-4 border-black pl-3">
+                  <dt className="font-bold text-gray-900">{item.label}</dt>
+                  <dd className="text-gray-700 text-sm leading-relaxed">{item.desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-sm text-gray-500 leading-relaxed">{text.responseStatus.note}</p>
+          </section>
+
+          {/* アクセス制限について */}
+          <section className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+              {text.accessGate.heading}
+            </h2>
+            <p className="text-gray-700 leading-relaxed">{text.accessGate.content}</p>
           </section>
 
           {/* 運営・管理について */}
