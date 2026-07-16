@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 type Status = "answered" | "checking" | "cannot_answer";
 
 export default function Admin() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
   const { data: categories } = trpc.opinions.getCategories.useQuery();
   const { data: opinions, refetch: refreshOpinions } = trpc.admin.getAllOpinions.useQuery();
@@ -30,6 +30,9 @@ export default function Admin() {
   const updateView = trpc.admin_universityViews.update.useMutation();
   const setApproval = trpc.admin_universityViews.setApprovalStatus.useMutation();
 
+  // The auth query must settle before deciding — redirecting while the session
+  // cookie is still being verified bounced freshly logged-in admins away.
+  if (loading) return <main className="min-h-screen bg-white p-8 font-black">確認中...</main>;
   if (!isAuthenticated || user?.role !== "admin") { navigate("/admin/login"); return null; }
   const refresh = () => { void refreshThemes(); void refreshViews(); void refreshOpinions(); };
   const existing = activeTheme ? views?.find(view => view.themeId === activeTheme) : undefined;
