@@ -85,6 +85,7 @@ export const appRouter = router({
       .input(
         z.object({
           categoryId: z.number().optional(),
+          themeId: z.number().optional(),
           userId: z.number().optional(),
           includeFeedback: z.boolean().optional(),
         }).optional()
@@ -92,6 +93,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await db.getOpinions({
           categoryId: input?.categoryId,
+          themeId: input?.themeId,
           userId: input?.userId,
           isVisible: true,
           approvalStatus: "approved",
@@ -119,7 +121,7 @@ export const appRouter = router({
       .input(
         z.object({
           opinionId: z.number().int().positive(),
-          voteType: z.enum(["agree", "disagree", "pass"]),
+          voteType: z.enum(["agree", "disagree"]),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -172,14 +174,11 @@ export const appRouter = router({
         if (!opinion) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Opinion not found" });
         }
-        const totalVotes = opinion.agreeCount + opinion.disagreeCount + opinion.passCount;
-        
         return {
           success: true,
           counts: {
             agreeCount: opinion.agreeCount,
             disagreeCount: opinion.disagreeCount,
-            passCount: opinion.passCount,
           }
         };
       }),
@@ -190,12 +189,6 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         return await db.getUserVote(ctx.user.id, input.opinionId);
       }),
-  }),
-
-  analytics: router({
-    getStats: publicProcedure.query(async () => {
-      return await db.getAnalyticsStats();
-    }),
   }),
 
   // Admin procedures
@@ -329,10 +322,8 @@ export const appRouter = router({
         const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
         // Generate CSV content
-        const headers = ["ID", "問題文", "カテゴリー", "賛成数", "反対数", "パス数", "賛成率(%)", "作成日時"];
+        const headers = ["ID", "問題文", "カテゴリー", "賛成数", "反対数", "作成日時"];
         const rows = opinions.map(opinion => {
-          const total = opinion.agreeCount + opinion.disagreeCount + opinion.passCount;
-          const agreeRate = total > 0 ? ((opinion.agreeCount / total) * 100).toFixed(1) : "0.0";
           const categoryName = opinion.categoryId ? categoryMap.get(opinion.categoryId) || "未分類" : "未分類";
           
           const problemText = (opinion.problemStatement || "").replace(/\r?\n/g, " ");
@@ -343,8 +334,6 @@ export const appRouter = router({
             csvEscape(categoryName),
             opinion.agreeCount.toString(),
             opinion.disagreeCount.toString(),
-            opinion.passCount.toString(),
-            agreeRate,
             new Date(opinion.createdAt).toISOString().split('T')[0]
           ];
         });
@@ -354,18 +343,24 @@ export const appRouter = router({
       }),
   }),
 
-  // 大学側の課題認識(カテゴリ単位)。承認はオフライン運用 — 管理者が大学側からのOKを
+  themes: router({
+    list: publicProcedure
+      .input(z.object({ categoryId: z.number().int().positive().optional() }).optional())
+      .query(async ({ input }) => db.getThemes(input?.categoryId)),
+  }),
+
+  // 大学見解（テーマ単位）。承認はオフライン運用 — 管理者が大学側からのOKを
   // サイト外で得たうえで draft→published をトグルする。アプリ内承認フローは持たない。
   universityViews: router({
-    // Published views for the public contrast view, keyed by category
+    // Published views for the public contrast view, keyed by manually created theme.
     list: publicProcedure.query(async () => {
       return await db.getPublishedUniversityViews();
     }),
 
-    getByCategoryId: publicProcedure
-      .input(z.object({ categoryId: z.number().int().positive() }))
+    getByThemeId: publicProcedure
+      .input(z.object({ themeId: z.number().int().positive() }))
       .query(async ({ input }) => {
-        return await db.getUniversityViewByCategoryId(input.categoryId);
+        return await db.getUniversityViewByThemeId(input.themeId);
       }),
   }),
 
@@ -378,7 +373,7 @@ export const appRouter = router({
     create: adminProcedure
       .input(
         z.object({
-          categoryId: z.number().int().positive(),
+          themeId: z.number().int().positive(),
           body: z.string().trim().min(1).max(2000),
           responseStatus: z.enum(["answered", "checking", "cannot_answer"]),
           reason: z.string().trim().max(1000).optional(),
@@ -389,7 +384,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "REASON_REQUIRED_FOR_CANNOT_ANSWER" });
         }
         const result = await db.createUniversityView({
-          categoryId: input.categoryId,
+          themeId: input.themeId,
           body: input.body,
           responseStatus: input.responseStatus,
           reason: input.reason || null,
@@ -428,6 +423,23 @@ export const appRouter = router({
         await db.deleteUniversityView(input.id);
         return { success: true };
       }),
+  }),
+
+  // Manual, conservative grouping only. Do not automate classification.
+  admin_themes: router({
+    list: adminProcedure.query(async () => db.getThemes()),
+    create: adminProcedure
+      .input(z.object({ categoryId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
+      .mutation(async ({ ctx, input }) => db.createTheme({ ...input, createdBy: ctx.user.id })),
+    update: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
+      .mutation(async ({ input }) => { await db.updateTheme(input.id, { title: input.title }); return { success: true }; }),
+    remove: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => { await db.deleteTheme(input.id); return { success: true }; }),
+    assignOpinion: adminProcedure
+      .input(z.object({ opinionId: z.number().int().positive(), themeId: z.number().int().positive().nullable() }))
+      .mutation(async ({ input }) => { await db.updateOpinion(input.opinionId, { themeId: input.themeId }); return { success: true }; }),
   }),
 });
 

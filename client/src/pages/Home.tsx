@@ -1,51 +1,17 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { t, language } = useLanguage();
 
-  if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <div className="text-ultra-bold text-4xl">LOADING...</div>
-      </div>
-    );
-  }
-
-  // Admin check based on owner openId
-  const isAdmin = user?.role === "admin";
-
   return (
     <div className="min-h-[100dvh] bg-white relative overflow-hidden">
-      {/* Language switcher and admin access in top right corner */}
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10 flex items-center gap-2 md:gap-4">
+      <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10">
         <LanguageSwitcher />
-        {isAdmin ? (
-          <Button
-            onClick={() => setLocation("/admin")}
-            className="brutalist-border font-black uppercase"
-            variant="outline"
-            size="sm"
-          >
-            {t("nav.admin")}
-          </Button>
-        ) : (
-          <Button
-            onClick={() => window.location.href = getLoginUrl()}
-            className="brutalist-border font-black uppercase opacity-30 hover:opacity-100 transition-opacity"
-            variant="outline"
-            size="sm"
-          >
-            {t("nav.admin")}
-          </Button>
-        )}
       </div>
 
       {/* Geometric background elements */}
@@ -95,7 +61,7 @@ export default function Home() {
             {/* CTA Section */}
             <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-stretch md:items-start mb-10 md:mb-12 w-full md:w-auto">
               <Button
-                onClick={() => setLocation("/opinions")}
+                onClick={() => setLocation("/categories")}
                 className="brutalist-border-thick px-8 py-6 sm:px-10 sm:py-7 text-base sm:text-xl font-black uppercase hover:bg-black hover:text-white transition-all duration-300 w-full md:w-auto"
                 variant="outline"
               >
@@ -110,11 +76,11 @@ export default function Home() {
               </Button>
 
               <Button
-                onClick={() => setLocation("/analytics")}
+                onClick={() => setLocation("/opinions")}
                 className="brutalist-border-thick px-8 py-6 sm:px-10 sm:py-7 text-base sm:text-xl font-black uppercase hover:bg-black hover:text-white transition-all duration-300 w-full md:w-auto"
                 variant="outline"
               >
-                {t("home.analytics")}
+                {language === "ja" ? "最新の声を見る" : "View Latest Voices"}
               </Button>
             </div>
 

@@ -55,6 +55,8 @@ export const opinions = mysqlTable("opinions", {
   userId: int("userId"), // Nullable - for admin users only
   anonymousUserId: int("anonymousUserId"), // For anonymous users
   categoryId: int("categoryId"),
+  // A conservative, administrator-created grouping. NULL means ungrouped.
+  themeId: int("themeId"),
   problemStatement: text("problemStatement"), // "いつ/どこで/誰が困るか" を1文で
   audioUrl: text("audioUrl"), // Nullable for text-only submissions
   audioFileKey: varchar("audioFileKey", { length: 500 }), // Nullable for text-only submissions
@@ -65,7 +67,6 @@ export const opinions = mysqlTable("opinions", {
   isVisible: boolean("isVisible").default(true).notNull(),
   agreeCount: int("agreeCount").default(0).notNull(),
   disagreeCount: int("disagreeCount").default(0).notNull(),
-  passCount: int("passCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -81,7 +82,7 @@ export const votes = mysqlTable("votes", {
   userId: int("userId"), // Nullable - for admin users only
   anonymousUserId: int("anonymousUserId"), // For anonymous users
   opinionId: int("opinionId").notNull(),
-  voteType: mysqlEnum("voteType", ["agree", "disagree", "pass"]).notNull(),
+  voteType: mysqlEnum("voteType", ["agree", "disagree"]).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -90,23 +91,20 @@ export type Vote = typeof votes.$inferSelect;
 export type InsertVote = typeof votes.$inferInsert;
 
 /**
- * LLM-generated opinion groups and themes (multilingual)
+ * Themes are created and assigned manually by administrators. No AI/LLM-based
+ * grouping or automatic classification is used by this platform.
  */
-export const opinionGroups = mysqlTable("opinion_groups", {
+export const themes = mysqlTable("themes", {
   id: int("id").autoincrement().primaryKey(),
-  themeJa: varchar("themeJa", { length: 200 }).notNull(),
-  themeEn: varchar("themeEn", { length: 200 }).notNull(),
-  summaryJa: text("summaryJa").notNull(),
-  summaryEn: text("summaryEn").notNull(),
-  sentiment: mysqlEnum("sentiment", ["positive", "negative", "neutral", "mixed"]).default("neutral").notNull(),
-  opinionIds: text("opinionIds").notNull(), // JSON array of opinion IDs
-  opinionCount: int("opinionCount").default(0).notNull(),
+  categoryId: int("categoryId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export type OpinionGroup = typeof opinionGroups.$inferSelect;
-export type InsertOpinionGroup = typeof opinionGroups.$inferInsert;
+export type Theme = typeof themes.$inferSelect;
+export type InsertTheme = typeof themes.$inferInsert;
 
 /**
  * Deletion logs for moderation transparency
@@ -126,15 +124,12 @@ export type DeletionLog = typeof deletionLogs.$inferSelect;
 export type InsertDeletionLog = typeof deletionLogs.$inferInsert;
 
 /**
- * University's stated position on a category of student opinions.
- * Tied to a category (not individual opinions) so the matching between
- * student voice and institutional response stays at the coarse,
- * disclosable granularity of category design rather than an arbitrary
- * per-opinion pairing.
+ * A university-confirmed current explanation/view for a manually-created theme.
+ * This is not an official decision, commitment, or automated interpretation.
  */
 export const universityViews = mysqlTable("university_views", {
   id: int("id").autoincrement().primaryKey(),
-  categoryId: int("categoryId").notNull(),
+  themeId: int("themeId").notNull(),
   body: text("body").notNull(), // 大学側の課題認識・制約の説明
   responseStatus: mysqlEnum("responseStatus", ["answered", "checking", "cannot_answer"])
     .default("checking")

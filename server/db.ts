@@ -1,6 +1,6 @@
-import { eq, desc, and, sql, isNotNull } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { users, opinions, votes, categories, anonymousUsers, deletionLogs, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertUniversityView } from "../drizzle/schema";
+import { users, opinions, votes, categories, deletionLogs, themes, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertTheme, InsertUniversityView } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -40,7 +40,7 @@ export async function createOpinion(opinion: InsertOpinion) {
   return { insertId };
 }
 
-export async function getOpinions(filters?: { categoryId?: number; isVisible?: boolean; userId?: number; approvalStatus?: string; excludeFeedbackCategories?: boolean }) {
+export async function getOpinions(filters?: { categoryId?: number; themeId?: number; isVisible?: boolean; userId?: number; approvalStatus?: string; excludeFeedbackCategories?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -48,6 +48,7 @@ export async function getOpinions(filters?: { categoryId?: number; isVisible?: b
 
   const conditions = [];
   if (filters?.categoryId) conditions.push(eq(opinions.categoryId, filters.categoryId));
+  if (filters?.themeId) conditions.push(eq(opinions.themeId, filters.themeId));
   if (filters?.isVisible !== undefined) conditions.push(eq(opinions.isVisible, filters.isVisible));
   if (filters?.userId) conditions.push(eq(opinions.userId, filters.userId));
   if (filters?.approvalStatus) conditions.push(eq(opinions.approvalStatus, filters.approvalStatus as any));
@@ -92,14 +93,9 @@ export async function updateOpinionCounts(opinionId: number) {
     .from(votes)
     .where(and(eq(votes.opinionId, opinionId), eq(votes.voteType, "disagree")));
   
-  const passCounts = await db.select({ count: sql<number>`count(*)` })
-    .from(votes)
-    .where(and(eq(votes.opinionId, opinionId), eq(votes.voteType, "pass")));
-  
   await db.update(opinions).set({
     agreeCount: Number(agreeCounts[0]?.count || 0),
     disagreeCount: Number(disagreeCounts[0]?.count || 0),
-    passCount: Number(passCounts[0]?.count || 0),
   }).where(eq(opinions.id, opinionId));
 }
 
@@ -133,7 +129,7 @@ export async function getAnonymousUserVote(anonymousUserId: number, opinionId: n
   return result[0];
 }
 
-export async function updateVote(id: number, voteType: "agree" | "disagree" | "pass") {
+export async function updateVote(id: number, voteType: "agree" | "disagree") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
@@ -182,7 +178,38 @@ export async function deleteOpinion(opinionId: number) {
   // Then delete the opinion
   await db.delete(opinions).where(eq(opinions.id, opinionId));
 }
-// University view queries (institutional response, tied to a category)
+// Themes are made and assigned by administrators only. No automatic/AI grouping.
+export async function getThemes(categoryId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const query = db.select().from(themes);
+  return categoryId
+    ? await query.where(eq(themes.categoryId, categoryId)).orderBy(themes.createdAt)
+    : await query.orderBy(themes.createdAt);
+}
+
+export async function createTheme(theme: InsertTheme) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(themes).values(theme);
+  return { insertId: Number((result as any)[0].insertId) };
+}
+
+export async function updateTheme(id: number, updates: Partial<InsertTheme>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(themes).set(updates).where(eq(themes.id, id));
+}
+
+export async function deleteTheme(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(opinions).set({ themeId: null }).where(eq(opinions.themeId, id));
+  await db.delete(universityViews).where(eq(universityViews.themeId, id));
+  await db.delete(themes).where(eq(themes.id, id));
+}
+
+// University views are explicitly linked to themes, never inferred from text.
 export async function getPublishedUniversityViews() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -194,14 +221,14 @@ export async function getPublishedUniversityViews() {
     .orderBy(desc(universityViews.updatedAt));
 }
 
-export async function getUniversityViewByCategoryId(categoryId: number) {
+export async function getUniversityViewByThemeId(themeId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   const result = await db
     .select()
     .from(universityViews)
-    .where(and(eq(universityViews.categoryId, categoryId), eq(universityViews.approvalStatus, "published")))
+    .where(and(eq(universityViews.themeId, themeId), eq(universityViews.approvalStatus, "published")))
     .limit(1);
 
   return result[0] || null;
@@ -234,98 +261,6 @@ export async function deleteUniversityView(id: number) {
   if (!db) throw new Error("Database not available");
 
   await db.delete(universityViews).where(eq(universityViews.id, id));
-}
-
-// Analytics
-export async function getAnalyticsStats() {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const notFeedbackOpinion = sql`(${opinions.categoryId} IS NULL OR ${opinions.categoryId} NOT IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`;
-  const notFeedbackVote = sql`${votes.opinionId} NOT IN (SELECT id FROM \`opinions\` WHERE categoryId IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`;
-
-  const [opinionAgg, voterCount, categoryStats, weeklyTrend, submitterCount] =
-    await Promise.all([
-      // Opinion aggregation — フィードバックカテゴリーを除外
-      db.select({
-        approved:     sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then 1 else 0 end)`,
-        pending:      sql<number>`sum(case when ${opinions.approvalStatus}='pending' then 1 else 0 end)`,
-        totalVotes:   sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.agreeCount} + ${opinions.disagreeCount} + ${opinions.passCount} else 0 end)`,
-        totalAgree:   sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.agreeCount} else 0 end)`,
-        totalDisagree: sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.disagreeCount} else 0 end)`,
-        totalPass:    sql<number>`sum(case when ${opinions.approvalStatus}='approved' and ${opinions.isVisible}=1 then ${opinions.passCount} else 0 end)`,
-      }).from(opinions).where(notFeedbackOpinion),
-
-      // Unique voters — フィードバック意見への投票を除外
-      db.select({ count: sql<number>`count(distinct ${votes.anonymousUserId})` })
-        .from(votes)
-        .where(and(isNotNull(votes.anonymousUserId), notFeedbackVote)),
-
-      // Per-category breakdown（分布の俯瞰用。順位付けには使わない）— フィードバックカテゴリーを除外
-      db.select({
-        categoryId: opinions.categoryId,
-        count:      sql<number>`count(*)`,
-        totalVotes: sql<number>`sum(${opinions.agreeCount} + ${opinions.disagreeCount} + ${opinions.passCount})`,
-        agreeSum:   sql<number>`sum(${opinions.agreeCount})`,
-      })
-        .from(opinions)
-        .where(and(eq(opinions.approvalStatus, "approved"), eq(opinions.isVisible, true), notFeedbackOpinion))
-        .groupBy(opinions.categoryId),
-
-      // Weekly submission trend — フィードバック除外
-      db.select({
-        label: sql<string>`DATE_FORMAT(${opinions.createdAt}, '%m/%d')`,
-        count: sql<number>`count(*)`,
-      })
-        .from(opinions)
-        .where(and(sql`${opinions.createdAt} >= DATE_SUB(NOW(), INTERVAL 5 WEEK)`, notFeedbackOpinion))
-        .groupBy(sql`DATE(${opinions.createdAt}), DATE_FORMAT(${opinions.createdAt}, '%m/%d')`)
-        .orderBy(sql`DATE(${opinions.createdAt})`),
-
-      // Unique submitters — フィードバック除外
-      db.select({ count: sql<number>`count(distinct ${opinions.anonymousUserId})` })
-        .from(opinions)
-        .where(and(isNotNull(opinions.anonymousUserId), notFeedbackOpinion)),
-    ]);
-
-  const allCategories = await db.select().from(categories);
-  const categoryNameMap = new Map(allCategories.map(c => [c.id, c.name]));
-
-  const totalVotes = Number(opinionAgg[0]?.totalVotes || 0);
-  const totalAgree = Number(opinionAgg[0]?.totalAgree || 0);
-  const totalDisagree = Number(opinionAgg[0]?.totalDisagree || 0);
-  const totalPass = Number(opinionAgg[0]?.totalPass || 0);
-  const approvedOpinions = Number(opinionAgg[0]?.approved || 0);
-
-  return {
-    opinions: {
-      total: approvedOpinions,
-      pending: Number(opinionAgg[0]?.pending || 0),
-    },
-    uniqueVoters: Number(voterCount[0]?.count || 0),
-    uniqueSubmitters: Number(submitterCount[0]?.count || 0),
-    votes: {
-      total: totalVotes,
-      agree: totalAgree,
-      disagree: totalDisagree,
-      pass: totalPass,
-    },
-    avgAgreeRate: totalVotes > 0 ? Math.round((totalAgree / totalVotes) * 100) : 0,
-    categoryBreakdown: categoryStats
-      .map(c => ({
-        category: categoryNameMap.get(c.categoryId ?? 0) || "未分類",
-        count: Number(c.count),
-        totalVotes: Number(c.totalVotes),
-        agreeRate: Number(c.totalVotes) > 0
-          ? Math.round((Number(c.agreeSum) / Number(c.totalVotes)) * 100)
-          : 0,
-      }))
-      .sort((a, b) => b.count - a.count),
-    weeklyTrend: weeklyTrend.map(w => ({
-      label: w.label,
-      count: Number(w.count),
-    })),
-  };
 }
 
 // Deletion log queries
