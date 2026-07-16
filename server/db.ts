@@ -166,6 +166,14 @@ export async function deleteCategory(id: number) {
   await db.delete(categories).where(eq(categories.id, id));
 }
 
+export async function getCategoryUsage(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [opinionCount] = await db.select({ count: sql<number>`count(*)` }).from(opinions).where(eq(opinions.categoryId, id));
+  const [themeCount] = await db.select({ count: sql<number>`count(*)` }).from(themes).where(eq(themes.categoryId, id));
+  return { opinions: Number(opinionCount?.count ?? 0), themes: Number(themeCount?.count ?? 0) };
+}
+
 
 // Delete opinion
 export async function deleteOpinion(opinionId: number) {

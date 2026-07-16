@@ -310,6 +310,10 @@ export const appRouter = router({
     deleteCategory: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
+        const usage = await db.getCategoryUsage(input.id);
+        if (usage.opinions || usage.themes) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "CATEGORY_IN_USE" });
+        }
         await db.deleteCategory(input.id);
         return { success: true };
       }),
@@ -327,7 +331,11 @@ export const appRouter = router({
           const categoryName = opinion.categoryId ? categoryMap.get(opinion.categoryId) || "未分類" : "未分類";
           
           const problemText = (opinion.problemStatement || "").replace(/\r?\n/g, " ");
-          const csvEscape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+          // Prevent spreadsheet formula injection when a CSV is opened locally.
+          const csvEscape = (s: string) => {
+            const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+            return `"${safe.replace(/"/g, '""')}"`;
+          };
           return [
             opinion.id.toString(),
             csvEscape(problemText),
