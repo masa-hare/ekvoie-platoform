@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,17 @@ export default function Admin() {
   const updateView = trpc.admin_universityViews.update.useMutation();
   const setApproval = trpc.admin_universityViews.setApprovalStatus.useMutation();
 
-  // The auth query must settle before deciding — redirecting while the session
-  // cookie is still being verified bounced freshly logged-in admins away.
-  if (loading) return <main className="min-h-screen bg-white p-8 font-black">確認中...</main>;
-  if (!isAuthenticated || user?.role !== "admin") { navigate("/admin/login"); return null; }
+  useEffect(() => {
+    if (!loading && (!isAuthenticated || user?.role !== "admin")) {
+      navigate("/admin/login");
+    }
+  }, [isAuthenticated, loading, navigate, user?.role]);
+
+  if (loading) {
+    return <main className="min-h-screen bg-white grid place-items-center font-black">認証を確認中…</main>;
+  }
+
+  if (!isAuthenticated || user?.role !== "admin") return null;
   const refresh = () => { void refreshThemes(); void refreshViews(); void refreshOpinions(); };
   const existing = activeTheme ? views?.find(view => view.themeId === activeTheme) : undefined;
   const start = (themeId: number) => { const view = views?.find(item => item.themeId === themeId); setActiveTheme(themeId); setBody(view?.body ?? ""); setStatus((view?.responseStatus as Status) ?? "checking"); setReason(view?.reason ?? ""); };
