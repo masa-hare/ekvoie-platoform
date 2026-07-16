@@ -12,7 +12,7 @@ import { apiLimiter, adminLoginLimiter, siteAccessLoginLimiter } from "../rateLi
 import { verifyAdminPassword, ADMIN_OPEN_ID } from "../adminAuth";
 import { verifySitePassword, SITE_ACCESS_OPEN_ID } from "../siteAccessAuth";
 import { sdk } from "./sdk";
-import { getSessionCookieOptions } from "./cookies";
+import { getAdminCookieOptions, getSessionCookieOptions } from "./cookies";
 import { COOKIE_NAME, SITE_ACCESS_COOKIE_NAME } from "@shared/const";
 import { renderSiteAccessPage } from "./siteAccessPage";
 import { validateEnv } from "./env";
@@ -75,11 +75,11 @@ async function startServer() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", "https:"],
-          mediaSrc: ["'self'", "https:"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          fontSrc: ["'self'"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+          mediaSrc: ["'self'", "data:"],
           workerSrc: ["'self'"],
           childSrc: ["'self'"],
           frameAncestors: ["'self'"],
@@ -166,14 +166,14 @@ async function startServer() {
       expiresInMs: SEVEN_DAYS_MS,
     });
 
-    const cookieOptions = getSessionCookieOptions(req);
+    const cookieOptions = getAdminCookieOptions(req);
     res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SEVEN_DAYS_MS });
     res.json({ success: true });
   });
 
   // Admin logout
   app.post("/api/admin/logout", (req, res) => {
-    const cookieOptions = getSessionCookieOptions(req);
+    const cookieOptions = getAdminCookieOptions(req);
     res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
     res.json({ success: true });
   });

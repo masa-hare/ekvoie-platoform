@@ -63,7 +63,7 @@ export const appRouter = router({
         if (!check.ok) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : "CONTENT_VIOLATION_HARMFUL",
+            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : check.type === "personal_name" ? "CONTENT_VIOLATION_PERSONAL_NAME" : "CONTENT_VIOLATION_HARMFUL",
           });
         }
 

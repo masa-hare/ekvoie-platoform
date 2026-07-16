@@ -67,6 +67,18 @@ export function getSessionCookieOptions(
   };
 }
 
+/** Admin sessions never need to work in an iframe or cross-site context. */
+export function getAdminCookieOptions(
+  req: Request
+): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: "strict",
+    secure: isSecureRequest(req),
+  };
+}
+
 /**
  * Get cookie options specifically for anonymous user tracking
  * Uses Lax by default for CSRF protection, but allows None for cross-origin contexts
