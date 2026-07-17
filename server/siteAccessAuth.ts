@@ -10,9 +10,8 @@ import { verifySecret } from "./passwordVerifier";
 export const SITE_ACCESS_OPEN_ID = "__svp_site_access__";
 
 /**
- * Verify the shared site-access password using timing-safe comparison.
- * Prefers the scrypt SITE_ACCESS_PASSWORD_HASH environment variable.
+ * Verify the shared site-access password using scrypt and a timing-safe comparison.
  */
 export function verifySitePassword(input: string): boolean {
-  return verifySecret(input, process.env.SITE_ACCESS_PASSWORD, process.env.SITE_ACCESS_PASSWORD_HASH);
+  return verifySecret(input, process.env.SITE_ACCESS_PASSWORD_HASH);
 }

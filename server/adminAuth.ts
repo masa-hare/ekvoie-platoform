@@ -6,10 +6,9 @@ import { verifySecret } from "./passwordVerifier";
 export const ADMIN_OPEN_ID = "__svp_admin__";
 
 /**
- * Verify admin password using timing-safe comparison.
- * Prefers the scrypt ADMIN_PASSWORD_HASH environment variable.
+ * Verify admin password using scrypt and a timing-safe comparison.
  * No personal information is stored or required.
  */
 export function verifyAdminPassword(input: string): boolean {
-  return verifySecret(input, process.env.ADMIN_PASSWORD, process.env.ADMIN_PASSWORD_HASH);
+  return verifySecret(input, process.env.ADMIN_PASSWORD_HASH);
 }
