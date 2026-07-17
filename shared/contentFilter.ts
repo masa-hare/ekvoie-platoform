@@ -29,7 +29,11 @@ function normalizeForFilter(text: string): string {
   return value.toLowerCase();
 }
 
-const HARMFUL_DIRECT: RegExp[] = [/死[にね]|殺[すし]|ぶっ殺|強姦|無能|馬鹿|バカ|あほ|アホ|クズ|ごみ|ゴミ|最低|詐欺師|犯罪者/];
+const HARMFUL_DIRECT: RegExp[] = [
+  /死[にね]|殺[すし]|ぶっ殺|強姦|無能|馬鹿|バカ|あほ|アホ|クズ|ごみ|ゴミ|最低|詐欺師|犯罪者/,
+  // Doxxing threats written in kanji (the normalized list only covers kana)
+  /晒(す|すぞ|し|せ)|住所を?(調べ|特定)/,
+];
 const HARMFUL_NORMALIZED: RegExp[] = [
   /しね|うせろ|きえろ|きえな|ころす|ぶっころ|ぶっとばす|くたばれ|のろわれろ|いきるかちない|そんざいするな/,
   /さらしてやる|さらすぞ|とくていした|とくていするぞ|じゅうしょしらべ|れいぷ|ごうかん/,

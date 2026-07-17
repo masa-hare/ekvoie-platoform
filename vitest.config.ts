@@ -14,9 +14,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    include: ["server/**/*.test.ts", "server/**/*.spec.ts", "shared/**/*.test.ts"],
     env: {
       NODE_ENV: "test",
+      // Secrets used only inside the test process — not real credentials.
+      JWT_SECRET: "vitest-secret-0123456789abcdef0123456789abcdef",
+      ADMIN_PASSWORD: "vitest-admin-password",
+      SITE_ACCESS_PASSWORD: "vitest-gate-password",
     },
   },
 });
