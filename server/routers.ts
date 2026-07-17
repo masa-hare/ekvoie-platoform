@@ -8,7 +8,11 @@ import { getOrCreateAnonymousUser } from "./anonymousAuth";
 
 import { TRPCError } from "@trpc/server";
 
-import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
+import {
+  opinionReportLimiter,
+  opinionSubmitLimiter,
+  voteLimiter,
+} from "./rateLimit";
 import { broadcastOpinionChange } from "./sse";
 import { sanitizeInput, checkContent } from "./security";
 
@@ -17,6 +21,12 @@ const deletionReasons = [
   "harassment_or_hate",
   "threat_or_illegal_content",
   "off_topic_or_spam",
+  "other_policy_violation",
+] as const;
+const reportReasons = [
+  "personal_information",
+  "harassment_or_hate",
+  "threat_or_illegal_content",
   "other_policy_violation",
 ] as const;
 
@@ -51,15 +61,29 @@ export const appRouter = router({
         // Apply rate limiting (skip in test environment)
         if (process.env.NODE_ENV !== "test") {
           await new Promise<void>((resolve, reject) => {
-            opinionSubmitLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
-              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many submissions. Please wait 1 minute before submitting again." }));
-              else resolve();
-            });
+            opinionSubmitLimiter(
+              ctx.req as any,
+              ctx.res as any,
+              (err?: any) => {
+                if (err)
+                  reject(
+                    new TRPCError({
+                      code: "TOO_MANY_REQUESTS",
+                      message:
+                        "Too many submissions. Please wait 1 minute before submitting again.",
+                    })
+                  );
+                else resolve();
+              }
+            );
           });
         }
 
         // Get or create anonymous user
-        const anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
+        const anonymousUserId = await getOrCreateAnonymousUser(
+          ctx.req,
+          ctx.res
+        );
 
         // Strip HTML tags before storage
         const cleanBody = sanitizeInput(input.body);
@@ -69,7 +93,12 @@ export const appRouter = router({
         if (!check.ok) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: check.type === "pii" ? "CONTENT_VIOLATION_PII" : check.type === "personal_name" ? "CONTENT_VIOLATION_PERSONAL_NAME" : "CONTENT_VIOLATION_HARMFUL",
+            message:
+              check.type === "pii"
+                ? "CONTENT_VIOLATION_PII"
+                : check.type === "personal_name"
+                  ? "CONTENT_VIOLATION_PERSONAL_NAME"
+                  : "CONTENT_VIOLATION_HARMFUL",
           });
         }
 
@@ -88,11 +117,13 @@ export const appRouter = router({
     // Get all opinions with filters (only approved ones for public)
     list: publicProcedure
       .input(
-        z.object({
-          categoryId: z.number().optional(),
-          themeId: z.number().optional(),
-          includeFeedback: z.boolean().optional(),
-        }).optional()
+        z
+          .object({
+            categoryId: z.number().optional(),
+            themeId: z.number().optional(),
+            includeFeedback: z.boolean().optional(),
+          })
+          .optional()
       )
       .query(async ({ input }) => {
         return await db.getOpinions({
@@ -101,7 +132,8 @@ export const appRouter = router({
           isVisible: true,
           approvalStatus: "approved",
           // リスト表示ではフィードバックカテゴリーを除外。カテゴリービューまたは直接指定時は含む
-          excludeFeedbackCategories: !input?.includeFeedback && !input?.categoryId,
+          excludeFeedbackCategories:
+            !input?.includeFeedback && !input?.categoryId,
         });
       }),
 
@@ -110,7 +142,11 @@ export const appRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }) => {
         const opinion = await db.getOpinionById(input.id);
-        if (!opinion || opinion.approvalStatus !== "approved" || !opinion.isVisible) {
+        if (
+          !opinion ||
+          opinion.approvalStatus !== "approved" ||
+          !opinion.isVisible
+        ) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Opinion not found",
@@ -132,7 +168,13 @@ export const appRouter = router({
         if (process.env.NODE_ENV !== "test") {
           await new Promise<void>((resolve, reject) => {
             voteLimiter(ctx.req as any, ctx.res as any, (err?: any) => {
-              if (err) reject(new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many votes. Please slow down." }));
+              if (err)
+                reject(
+                  new TRPCError({
+                    code: "TOO_MANY_REQUESTS",
+                    message: "Too many votes. Please slow down.",
+                  })
+                );
               else resolve();
             });
           });
@@ -145,7 +187,10 @@ export const appRouter = router({
         }
 
         // Check if user already voted
-        const existingVote = await db.getAnonymousUserVote(anonymousUserId, input.opinionId);
+        const existingVote = await db.getAnonymousUserVote(
+          anonymousUserId,
+          input.opinionId
+        );
 
         if (existingVote) {
           // Update existing vote
@@ -165,17 +210,64 @@ export const appRouter = router({
         // Get updated opinion with latest counts
         const opinion = await db.getOpinionById(input.opinionId);
         if (!opinion) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Opinion not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Opinion not found",
+          });
         }
         return {
           success: true,
           counts: {
             agreeCount: opinion.agreeCount,
             disagreeCount: opinion.disagreeCount,
-          }
+          },
         };
       }),
 
+    report: publicProcedure
+      .input(
+        z.object({
+          opinionId: z.number().int().positive(),
+          reason: z.enum(reportReasons),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve, reject) => {
+            opinionReportLimiter(
+              ctx.req as any,
+              ctx.res as any,
+              (err?: any) => {
+                if (err)
+                  reject(
+                    new TRPCError({
+                      code: "TOO_MANY_REQUESTS",
+                      message: "Too many reports. Please try again later.",
+                    })
+                  );
+                else resolve();
+              }
+            );
+          });
+        }
+        const opinion = await db.getOpinionById(input.opinionId);
+        if (
+          !opinion ||
+          opinion.approvalStatus !== "approved" ||
+          !opinion.isVisible
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Opinion not found",
+          });
+        }
+        await db.createOpinionReport({
+          opinionId: input.opinionId,
+          reason: input.reason,
+          status: "open",
+        });
+        return { success: true };
+      }),
   }),
 
   // Admin procedures
@@ -266,6 +358,19 @@ export const appRouter = router({
       return await db.getDeletionLogs();
     }),
 
+    getOpinionReports: adminProcedure.query(async () => db.getOpinionReports()),
+    setOpinionReportStatus: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          status: z.enum(["open", "reviewed", "dismissed"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateOpinionReportStatus(input.id, input.status);
+        return { success: true };
+      }),
+
     // Add category (admin only)
     addCategory: adminProcedure
       .input(
@@ -276,13 +381,19 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const result = await db.createCategory(input.name, input.description, input.isFeedback);
+        const result = await db.createCategory(
+          input.name,
+          input.description,
+          input.isFeedback
+        );
         return { success: true, insertId: result.insertId };
       }),
 
     // Toggle feedback flag on a category (admin only)
     toggleCategoryFeedback: adminProcedure
-      .input(z.object({ id: z.number().int().positive(), isFeedback: z.boolean() }))
+      .input(
+        z.object({ id: z.number().int().positive(), isFeedback: z.boolean() })
+      )
       .mutation(async ({ input }) => {
         await db.toggleCategoryFeedback(input.id, input.isFeedback);
         return { success: true };
@@ -294,48 +405,65 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const usage = await db.getCategoryUsage(input.id);
         if (usage.opinions || usage.themes) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CATEGORY_IN_USE" });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "CATEGORY_IN_USE",
+          });
         }
         await db.deleteCategory(input.id);
         return { success: true };
       }),
 
     // Export opinions to CSV (admin only)
-    exportOpinions: adminProcedure
-      .query(async () => {
-        const opinions = await db.getOpinions();
-        const categories = await db.getCategories();
-        const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+    exportOpinions: adminProcedure.query(async () => {
+      const opinions = await db.getOpinions();
+      const categories = await db.getCategories();
+      const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
-        // Generate CSV content
-        const headers = ["ID", "問題文", "カテゴリー", "賛成数", "反対数", "作成日時"];
-        const rows = opinions.map(opinion => {
-          const categoryName = opinion.categoryId ? categoryMap.get(opinion.categoryId) || "未分類" : "未分類";
-          
-          const opinionText = opinion.body.replace(/\r?\n/g, " ");
-          // Prevent spreadsheet formula injection when a CSV is opened locally.
-          const csvEscape = (s: string) => {
-            const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-            return `"${safe.replace(/"/g, '""')}"`;
-          };
-          return [
-            opinion.id.toString(),
-            csvEscape(opinionText),
-            csvEscape(categoryName),
-            opinion.agreeCount.toString(),
-            opinion.disagreeCount.toString(),
-            new Date(opinion.createdAt).toISOString().split('T')[0]
-          ];
-        });
+      // Generate CSV content
+      const headers = [
+        "ID",
+        "問題文",
+        "カテゴリー",
+        "賛成数",
+        "反対数",
+        "作成日時",
+      ];
+      const rows = opinions.map(opinion => {
+        const categoryName = opinion.categoryId
+          ? categoryMap.get(opinion.categoryId) || "未分類"
+          : "未分類";
 
-        const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
-        return { csv };
-      }),
+        const opinionText = opinion.body.replace(/\r?\n/g, " ");
+        // Prevent spreadsheet formula injection when a CSV is opened locally.
+        const csvEscape = (s: string) => {
+          const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+          return `"${safe.replace(/"/g, '""')}"`;
+        };
+        return [
+          opinion.id.toString(),
+          csvEscape(opinionText),
+          csvEscape(categoryName),
+          opinion.agreeCount.toString(),
+          opinion.disagreeCount.toString(),
+          new Date(opinion.createdAt).toISOString().split("T")[0],
+        ];
+      });
+
+      const csv = [headers.join(","), ...rows.map(row => row.join(","))].join(
+        "\n"
+      );
+      return { csv };
+    }),
   }),
 
   themes: router({
     list: publicProcedure
-      .input(z.object({ categoryId: z.number().int().positive().optional() }).optional())
+      .input(
+        z
+          .object({ categoryId: z.number().int().positive().optional() })
+          .optional()
+      )
       .query(async ({ input }) => db.getThemes(input?.categoryId)),
   }),
 
@@ -367,11 +495,19 @@ export const appRouter = router({
           body: z.string().trim().min(1).max(2000),
           responseStatus: z.enum(["answered", "checking", "cannot_answer"]),
           reason: z.string().trim().max(1000).optional(),
+          nextReviewAt: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional()
+            .nullable(),
         })
       )
       .mutation(async ({ input }) => {
         if (input.responseStatus === "cannot_answer" && !input.reason?.trim()) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "REASON_REQUIRED_FOR_CANNOT_ANSWER" });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "REASON_REQUIRED_FOR_CANNOT_ANSWER",
+          });
         }
         const result = await db.createUniversityView({
           themeId: input.themeId,
@@ -379,6 +515,9 @@ export const appRouter = router({
           responseStatus: input.responseStatus,
           reason: input.reason || null,
           approvalStatus: "draft",
+          nextReviewAt: input.nextReviewAt
+            ? new Date(`${input.nextReviewAt}T00:00:00.000Z`)
+            : null,
         });
         return { success: true, insertId: result.insertId };
       }),
@@ -388,22 +527,45 @@ export const appRouter = router({
         z.object({
           id: z.number().int().positive(),
           body: z.string().trim().min(1).max(2000).optional(),
-          responseStatus: z.enum(["answered", "checking", "cannot_answer"]).optional(),
+          responseStatus: z
+            .enum(["answered", "checking", "cannot_answer"])
+            .optional(),
           reason: z.string().trim().max(1000).optional().nullable(),
+          nextReviewAt: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional()
+            .nullable(),
         })
       )
       .mutation(async ({ input }) => {
-        const { id, ...updates } = input;
-        await db.updateUniversityView(id, updates);
+        const { id, nextReviewAt, ...updates } = input;
+        await db.updateUniversityView(id, {
+          ...updates,
+          ...(nextReviewAt === undefined
+            ? {}
+            : {
+                nextReviewAt: nextReviewAt
+                  ? new Date(`${nextReviewAt}T00:00:00.000Z`)
+                  : null,
+              }),
+        });
         return { success: true };
       }),
 
     // Toggle draft/published — flip this only after the university side has
     // confirmed the content off-site (email, meeting, internal chat, etc.)
     setApprovalStatus: adminProcedure
-      .input(z.object({ id: z.number().int().positive(), approvalStatus: z.enum(["draft", "published"]) }))
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          approvalStatus: z.enum(["draft", "published"]),
+        })
+      )
       .mutation(async ({ input }) => {
-        await db.updateUniversityView(input.id, { approvalStatus: input.approvalStatus });
+        await db.updateUniversityView(input.id, {
+          approvalStatus: input.approvalStatus,
+        });
         return { success: true };
       }),
 
@@ -419,17 +581,41 @@ export const appRouter = router({
   admin_themes: router({
     list: adminProcedure.query(async () => db.getThemes()),
     create: adminProcedure
-      .input(z.object({ categoryId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
+      .input(
+        z.object({
+          categoryId: z.number().int().positive(),
+          title: z.string().trim().min(1).max(200),
+        })
+      )
       .mutation(async ({ input }) => db.createTheme(input)),
     update: adminProcedure
-      .input(z.object({ id: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
-      .mutation(async ({ input }) => { await db.updateTheme(input.id, { title: input.title }); return { success: true }; }),
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          title: z.string().trim().min(1).max(200),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateTheme(input.id, { title: input.title });
+        return { success: true };
+      }),
     remove: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input }) => { await db.deleteTheme(input.id); return { success: true }; }),
+      .mutation(async ({ input }) => {
+        await db.deleteTheme(input.id);
+        return { success: true };
+      }),
     assignOpinion: adminProcedure
-      .input(z.object({ opinionId: z.number().int().positive(), themeId: z.number().int().positive().nullable() }))
-      .mutation(async ({ input }) => { await db.updateOpinion(input.opinionId, { themeId: input.themeId }); return { success: true }; }),
+      .input(
+        z.object({
+          opinionId: z.number().int().positive(),
+          themeId: z.number().int().positive().nullable(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateOpinion(input.opinionId, { themeId: input.themeId });
+        return { success: true };
+      }),
   }),
 });
 

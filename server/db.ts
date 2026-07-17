@@ -1,6 +1,21 @@
 import { eq, desc, and, sql, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { anonymousUsers, opinions, votes, categories, deletionLogs, themes, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertTheme, InsertUniversityView } from "../drizzle/schema";
+import {
+  anonymousUsers,
+  opinions,
+  votes,
+  categories,
+  deletionLogs,
+  opinionReports,
+  themes,
+  universityViews,
+  InsertOpinion,
+  InsertVote,
+  InsertDeletionLog,
+  InsertOpinionReport,
+  InsertTheme,
+  InsertUniversityView,
+} from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -16,29 +31,37 @@ export async function getDb() {
   return _db;
 }
 
-
 // Opinion queries
 export async function createOpinion(opinion: InsertOpinion) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const result = await db.insert(opinions).values(opinion);
   // MySqlRawQueryResult is [ResultSetHeader, FieldPacket[]]
   const insertId = Number((result as any)[0].insertId);
   return { insertId };
 }
 
-export async function getOpinions(filters?: { categoryId?: number; themeId?: number; isVisible?: boolean; approvalStatus?: string; excludeFeedbackCategories?: boolean }) {
+export async function getOpinions(filters?: {
+  categoryId?: number;
+  themeId?: number;
+  isVisible?: boolean;
+  approvalStatus?: string;
+  excludeFeedbackCategories?: boolean;
+}) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   let query = db.select().from(opinions);
 
   const conditions = [];
-  if (filters?.categoryId) conditions.push(eq(opinions.categoryId, filters.categoryId));
+  if (filters?.categoryId)
+    conditions.push(eq(opinions.categoryId, filters.categoryId));
   if (filters?.themeId) conditions.push(eq(opinions.themeId, filters.themeId));
-  if (filters?.isVisible !== undefined) conditions.push(eq(opinions.isVisible, filters.isVisible));
-  if (filters?.approvalStatus) conditions.push(eq(opinions.approvalStatus, filters.approvalStatus as any));
+  if (filters?.isVisible !== undefined)
+    conditions.push(eq(opinions.isVisible, filters.isVisible));
+  if (filters?.approvalStatus)
+    conditions.push(eq(opinions.approvalStatus, filters.approvalStatus as any));
   if (filters?.excludeFeedbackCategories) {
     conditions.push(
       sql`(${opinions.categoryId} IS NULL OR ${opinions.categoryId} NOT IN (SELECT id FROM \`categories\` WHERE isFeedback = 1))`
@@ -56,59 +79,78 @@ export async function getOpinions(filters?: { categoryId?: number; themeId?: num
 export async function getOpinionById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.select().from(opinions).where(eq(opinions.id, id)).limit(1);
+
+  const result = await db
+    .select()
+    .from(opinions)
+    .where(eq(opinions.id, id))
+    .limit(1);
   return result[0];
 }
 
 export async function updateOpinion(id: number, data: Partial<InsertOpinion>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(opinions).set(data).where(eq(opinions.id, id));
 }
 
 export async function updateOpinionCounts(opinionId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const agreeCounts = await db.select({ count: sql<number>`count(*)` })
+
+  const agreeCounts = await db
+    .select({ count: sql<number>`count(*)` })
     .from(votes)
     .where(and(eq(votes.opinionId, opinionId), eq(votes.voteType, "agree")));
-  
-  const disagreeCounts = await db.select({ count: sql<number>`count(*)` })
+
+  const disagreeCounts = await db
+    .select({ count: sql<number>`count(*)` })
     .from(votes)
     .where(and(eq(votes.opinionId, opinionId), eq(votes.voteType, "disagree")));
-  
-  await db.update(opinions).set({
-    agreeCount: Number(agreeCounts[0]?.count || 0),
-    disagreeCount: Number(disagreeCounts[0]?.count || 0),
-  }).where(eq(opinions.id, opinionId));
+
+  await db
+    .update(opinions)
+    .set({
+      agreeCount: Number(agreeCounts[0]?.count || 0),
+      disagreeCount: Number(disagreeCounts[0]?.count || 0),
+    })
+    .where(eq(opinions.id, opinionId));
 }
 
 // Vote queries
 export async function createVote(vote: InsertVote) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.insert(votes).values(vote);
 }
 
-export async function getAnonymousUserVote(anonymousUserId: number, opinionId: number) {
+export async function getAnonymousUserVote(
+  anonymousUserId: number,
+  opinionId: number
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.select().from(votes)
-    .where(and(eq(votes.anonymousUserId, anonymousUserId), eq(votes.opinionId, opinionId)))
+
+  const result = await db
+    .select()
+    .from(votes)
+    .where(
+      and(
+        eq(votes.anonymousUserId, anonymousUserId),
+        eq(votes.opinionId, opinionId)
+      )
+    )
     .limit(1);
-  
+
   return result[0];
 }
 
 export async function updateVote(id: number, voteType: "agree" | "disagree") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(votes).set({ voteType }).where(eq(votes.id, id));
 }
 
@@ -120,11 +162,21 @@ export async function getCategories() {
   return await db.select().from(categories).orderBy(categories.name);
 }
 
-export async function createCategory(name: string, description?: string, isFeedback?: boolean) {
+export async function createCategory(
+  name: string,
+  description?: string,
+  isFeedback?: boolean
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(categories).values({ name, description: description || null, isFeedback: isFeedback ?? false });
+  const result = await db
+    .insert(categories)
+    .values({
+      name,
+      description: description || null,
+      isFeedback: isFeedback ?? false,
+    });
   return { insertId: Number((result as any)[0].insertId) };
 }
 
@@ -145,20 +197,28 @@ export async function deleteCategory(id: number) {
 export async function getCategoryUsage(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const [opinionCount] = await db.select({ count: sql<number>`count(*)` }).from(opinions).where(eq(opinions.categoryId, id));
-  const [themeCount] = await db.select({ count: sql<number>`count(*)` }).from(themes).where(eq(themes.categoryId, id));
-  return { opinions: Number(opinionCount?.count ?? 0), themes: Number(themeCount?.count ?? 0) };
+  const [opinionCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(opinions)
+    .where(eq(opinions.categoryId, id));
+  const [themeCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(themes)
+    .where(eq(themes.categoryId, id));
+  return {
+    opinions: Number(opinionCount?.count ?? 0),
+    themes: Number(themeCount?.count ?? 0),
+  };
 }
-
 
 // Delete opinion
 export async function deleteOpinion(opinionId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   // First delete related votes
   await db.delete(votes).where(eq(votes.opinionId, opinionId));
-  
+
   // Then delete the opinion
   await db.delete(opinions).where(eq(opinions.id, opinionId));
 }
@@ -168,7 +228,9 @@ export async function getThemes(categoryId?: number) {
   if (!db) throw new Error("Database not available");
   const query = db.select().from(themes);
   return categoryId
-    ? await query.where(eq(themes.categoryId, categoryId)).orderBy(themes.createdAt)
+    ? await query
+        .where(eq(themes.categoryId, categoryId))
+        .orderBy(themes.createdAt)
     : await query.orderBy(themes.createdAt);
 }
 
@@ -192,8 +254,14 @@ export async function purgeExpiredAnonymousData(now = new Date()) {
   // No foreign keys are used in this legacy schema, so remove links before
   // deleting the identifiers themselves.
   for (const id of ids) {
-    await db.update(opinions).set({ anonymousUserId: null }).where(eq(opinions.anonymousUserId, id));
-    await db.update(votes).set({ anonymousUserId: null }).where(eq(votes.anonymousUserId, id));
+    await db
+      .update(opinions)
+      .set({ anonymousUserId: null })
+      .where(eq(opinions.anonymousUserId, id));
+    await db
+      .update(votes)
+      .set({ anonymousUserId: null })
+      .where(eq(votes.anonymousUserId, id));
   }
   await db.delete(anonymousUsers).where(lt(anonymousUsers.expiresAt, now));
   return { purged: ids.length };
@@ -215,7 +283,10 @@ export async function updateTheme(id: number, updates: Partial<InsertTheme>) {
 export async function deleteTheme(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(opinions).set({ themeId: null }).where(eq(opinions.themeId, id));
+  await db
+    .update(opinions)
+    .set({ themeId: null })
+    .where(eq(opinions.themeId, id));
   await db.delete(universityViews).where(eq(universityViews.themeId, id));
   await db.delete(themes).where(eq(themes.id, id));
 }
@@ -239,7 +310,12 @@ export async function getUniversityViewByThemeId(themeId: number) {
   const result = await db
     .select()
     .from(universityViews)
-    .where(and(eq(universityViews.themeId, themeId), eq(universityViews.approvalStatus, "published")))
+    .where(
+      and(
+        eq(universityViews.themeId, themeId),
+        eq(universityViews.approvalStatus, "published")
+      )
+    )
     .limit(1);
 
   return result[0] || null;
@@ -249,7 +325,10 @@ export async function getAllUniversityViews() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  return await db.select().from(universityViews).orderBy(desc(universityViews.updatedAt));
+  return await db
+    .select()
+    .from(universityViews)
+    .orderBy(desc(universityViews.updatedAt));
 }
 
 export async function createUniversityView(view: InsertUniversityView) {
@@ -260,11 +339,17 @@ export async function createUniversityView(view: InsertUniversityView) {
   return { insertId: Number((result as any)[0].insertId) };
 }
 
-export async function updateUniversityView(id: number, updates: Partial<InsertUniversityView>) {
+export async function updateUniversityView(
+  id: number,
+  updates: Partial<InsertUniversityView>
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(universityViews).set(updates).where(eq(universityViews.id, id));
+  await db
+    .update(universityViews)
+    .set(updates)
+    .where(eq(universityViews.id, id));
 }
 
 export async function deleteUniversityView(id: number) {
@@ -286,6 +371,37 @@ export async function getDeletionLogs() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  return await db.select().from(deletionLogs).orderBy(desc(deletionLogs.deletedAt));
+  return await db
+    .select()
+    .from(deletionLogs)
+    .orderBy(desc(deletionLogs.deletedAt));
 }
 
+// Reports intentionally contain only an opinion ID, a fixed reason, and time.
+export async function createOpinionReport(report: InsertOpinionReport) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(opinionReports).values(report);
+  return { insertId: Number((result as any)[0].insertId) };
+}
+
+export async function getOpinionReports() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db
+    .select()
+    .from(opinionReports)
+    .orderBy(desc(opinionReports.createdAt));
+}
+
+export async function updateOpinionReportStatus(
+  id: number,
+  status: "open" | "reviewed" | "dismissed"
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(opinionReports)
+    .set({ status })
+    .where(eq(opinionReports.id, id));
+}

@@ -1,6 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -17,26 +17,6 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function Router() {
-  useEffect(() => {
-    // Prefetch all page chunks in the background after initial load
-    const prefetch = () => {
-      import("./pages/Opinions");
-      import("./pages/SubmitOpinion");
-      import("./pages/OpinionDetail");
-      import("./pages/HowItWorks");
-      import("./pages/About");
-      import("./pages/SiteInsights");
-      import("./pages/AdminLogin");
-      import("./pages/Admin");
-      import("./pages/NotFound");
-    };
-    if ("requestIdleCallback" in window) {
-      (window as any).requestIdleCallback(prefetch);
-    } else {
-      setTimeout(prefetch, 200);
-    }
-  }, []);
-
   return (
     <Suspense fallback={<div className="min-h-[100dvh] bg-white" />}>
       <Switch>

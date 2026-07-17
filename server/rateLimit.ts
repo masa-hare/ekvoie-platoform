@@ -19,7 +19,10 @@ function getCompositeKey(req: Request): string {
 export const opinionSubmitLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 1, // 1 request per window
-  message: { error: "Too many submissions. Please wait 1 minute before submitting again." },
+  message: {
+    error:
+      "Too many submissions. Please wait 1 minute before submitting again.",
+  },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getCompositeKey,
@@ -37,6 +40,17 @@ export const voteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getCompositeKey,
+  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
+});
+
+/** Reports do not create a user record; rate limiting is in-memory only. */
+export const opinionReportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { error: "Too many reports. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: req => req.ip ?? req.socket?.remoteAddress ?? "unknown",
   validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
@@ -64,7 +78,7 @@ export const adminLoginLimiter = rateLimit({
   message: { error: "Too many login attempts. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? req.socket?.remoteAddress ?? "unknown",
+  keyGenerator: req => req.ip ?? req.socket?.remoteAddress ?? "unknown",
   validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });
 
@@ -77,6 +91,6 @@ export const siteAccessLoginLimiter = rateLimit({
   message: { error: "Too many login attempts. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? req.socket?.remoteAddress ?? "unknown",
+  keyGenerator: req => req.ip ?? req.socket?.remoteAddress ?? "unknown",
   validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
 });

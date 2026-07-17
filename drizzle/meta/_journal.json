@@ -71,6 +71,13 @@
       "when": 1784300000000,
       "tag": "0009_privacy_minimization",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1784400000000,
+      "tag": "0010_reports_and_view_reviews",
+      "breakpoints": true
     }
   ]
 }

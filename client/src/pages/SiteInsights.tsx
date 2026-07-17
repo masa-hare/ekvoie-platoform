@@ -261,7 +261,7 @@ export default function SiteInsights() {
             <p className="text-gray-700 leading-relaxed mb-3">
               {ja
                 ? `${siteConfig.orgName.ja}の学生が、匿名で学内の問題や提案を投稿し、他の学生が「賛成・反対・パス」で意見を表明できるプラットフォームです。`
-                : `A platform for ${siteConfig.orgName.en} students to anonymously post campus issues and proposals, with others voting agree, disagree, or pass.`}
+                : `A platform for ${siteConfig.orgName.en} students to anonymously post campus issues and opinions, with others voting agree or disagree.`}
             </p>
             <ul className="space-y-2 text-gray-700 text-sm">
               {(ja
@@ -275,7 +275,7 @@ export default function SiteInsights() {
                   ]
                 : [
                     "Post anonymously — no account needed",
-                    "Vote: agree, disagree, or pass (no ranking or 'best opinion' selection)",
+                    "Vote: agree or disagree (no ranking or 'best opinion' selection)",
                     "Student voice shown side by side with the university's view, by category",
                     "Pre-submission filter blocks personal info and harmful language (rule-based, not AI)",
                     "Posts publish instantly; admins review and remove problematic content after the fact",

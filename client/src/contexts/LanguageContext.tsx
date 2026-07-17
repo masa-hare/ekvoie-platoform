@@ -69,7 +69,7 @@ const translations = {
     "howItWorks.step4Desc": "Posts are published immediately after passing an automatic content filter that blocks personal information and harmful language. Administrators read all posts and may hide or delete content that is defamatory or violates community guidelines. This site is committed to keeping the distribution of campus opinions and issues verifiable by users.",
     "howItWorks.processTitle": "OPINION → VOTE\n→ CONTRAST",
     "howItWorks.processSubtitle": "From Submission to Contrast",
-    "howItWorks.processDesc": "Students submit an opinion. Others can react with Agree, Disagree, or Pass — visualizing resonance, not ranking opinions. In the by-category view, opinions sit alongside the university's own view of the same issue.",
+    "howItWorks.processDesc": "Students submit an opinion. Others can react with Agree or Disagree — visualizing resonance, not ranking opinions. In the by-category view, opinions sit alongside the university's own view of the same issue.",
     "howItWorks.frontend": "Frontend",
     "howItWorks.backend": "Backend",
     "howItWorks.keyFeatures": "Key Features",
