@@ -1,24 +1,6 @@
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
 
 /**
- * Core user table backing auth flow.
- */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-
-/**
  * Anonymous users identified by UUID stored in HttpOnly cookie
  * UUIDs expire after 90 days to minimize tracking and protect privacy
  */
@@ -48,20 +30,18 @@ export type Category = typeof categories.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
 
 /**
- * Student opinions with voice transcription
+ * Student opinions. Posts are text-only so that the service does not retain
+ * voice recordings or an unnecessary second copy of the same opinion.
  */
 export const opinions = mysqlTable("opinions", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId"), // Nullable - for admin users only
-  anonymousUserId: int("anonymousUserId"), // For anonymous users
+  // A short-lived pseudonymous ID used only to prevent duplicate votes.
+  // It is cleared when the anonymous-user record expires.
+  anonymousUserId: int("anonymousUserId"),
   categoryId: int("categoryId"),
   // A conservative, administrator-created grouping. NULL means ungrouped.
   themeId: int("themeId"),
-  problemStatement: text("problemStatement"), // "いつ/どこで/誰が困るか" を1文で
-  audioUrl: text("audioUrl"), // Nullable for text-only submissions
-  audioFileKey: varchar("audioFileKey", { length: 500 }), // Nullable for text-only submissions
-  transcription: text("transcription").notNull(),
-  language: varchar("language", { length: 10 }),
+  body: text("body").notNull(),
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
   isModerated: boolean("isModerated").default(false).notNull(),
   isVisible: boolean("isVisible").default(true).notNull(),
@@ -79,7 +59,6 @@ export type InsertOpinion = typeof opinions.$inferInsert;
  */
 export const votes = mysqlTable("votes", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId"), // Nullable - for admin users only
   anonymousUserId: int("anonymousUserId"), // For anonymous users
   opinionId: int("opinionId").notNull(),
   voteType: mysqlEnum("voteType", ["agree", "disagree"]).notNull(),
@@ -98,7 +77,6 @@ export const themes = mysqlTable("themes", {
   id: int("id").autoincrement().primaryKey(),
   categoryId: int("categoryId").notNull(),
   title: varchar("title", { length: 200 }).notNull(),
-  createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -108,15 +86,14 @@ export type InsertTheme = typeof themes.$inferInsert;
 
 /**
  * Deletion logs for moderation transparency
- * Stores information about hidden/deleted opinions
+ * Stores only non-content moderation metadata. It intentionally does not keep
+ * a preview or copy of a deleted post.
  */
 export const deletionLogs = mysqlTable("deletion_logs", {
   id: int("id").autoincrement().primaryKey(),
   postType: mysqlEnum("postType", ["opinion"]).notNull(),
   postId: int("postId").notNull(),
-  content: text("content").notNull(),
-  reason: text("reason"),
-  deletedBy: int("deletedBy"),
+  reason: mysqlEnum("reason", ["personal_information", "harassment_or_hate", "threat_or_illegal_content", "off_topic_or_spam", "other_policy_violation"]).notNull(),
   deletedAt: timestamp("deletedAt").defaultNow().notNull(),
 });
 

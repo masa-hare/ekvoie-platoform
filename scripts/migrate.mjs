@@ -62,7 +62,7 @@ const steps = [
 // ALTER TABLE ステートメント (列が存在しない場合のみ実行)
 const alterSteps = [
   ["opinions",      "anonymousUserId", "int"],
-  ["opinions",      "problemStatement", "text"],
+  ["opinions",      "body", "text"],
   ["opinions",      "approvalStatus",   "enum('pending','approved','rejected') NOT NULL DEFAULT 'pending'"],
   ["votes",         "anonymousUserId",  "int"],
   ["opinion_groups","themeJa",          "varchar(200)"],

@@ -34,7 +34,7 @@ export default function SubmitOpinion() {
     if (violation) return toast.error(ja ? "この内容は投稿できないよ。" : "This content cannot be submitted.");
     setIsSubmitting(true);
     try {
-      const result = await createOpinion.mutateAsync({ problemStatement: "", solutionProposal: opinionText.trim(), categoryId: Number(categoryId) });
+      const result = await createOpinion.mutateAsync({ body: opinionText.trim(), categoryId: Number(categoryId) });
       setSubmittedId(Number((result as any).insertId));
       setOpinionText(""); setCategoryId("");
     } catch (error: any) {

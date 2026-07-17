@@ -77,7 +77,7 @@ export default function SiteInsights() {
           term: "匿名認証（Anonymous Auth）",
           simple: "ログインしなくても投稿・投票ができる仕組み。ただし同じ人が二重投票しないよう管理もしている。",
           detail:
-            "ブラウザに「匿名ID」をCookieとして保存することで、アカウント登録なしで本人確認をしています。このIDは90日で失効し、個人を特定できる情報は一切含まれていません。",
+            "同じブラウザからの重複投票を防ぐため、Cookieにランダムな匿名IDを30日間だけ保存します。氏名・メールアドレスなどは収集せず、期限後は匿名IDと投稿・投票の紐づけをDBから削除します。",
         },
         {
           term: "GitHub",
@@ -145,7 +145,7 @@ export default function SiteInsights() {
           term: "Anonymous Auth",
           simple: "A system that lets you post and vote without logging in, while still preventing double-voting.",
           detail:
-            "An anonymous ID is stored as a cookie in your browser. No account needed, no personal data collected. The ID expires after 90 days.",
+            "A random anonymous ID is stored in a cookie for 30 days to prevent duplicate votes from the same browser. No account, name, or contact detail is collected; after expiry, the ID and its links to posts and votes are removed from the database.",
         },
         {
           term: "GitHub",
@@ -220,8 +220,8 @@ export default function SiteInsights() {
       label: ja ? "認証" : "Auth",
       tech: "JWT + Anonymous UUID",
       desc: ja
-        ? "管理者はJWTトークンでログイン。一般ユーザーはCookieに保存した匿名UUIDで識別（個人情報なし）。"
-        : "Admins log in with JWT tokens. Regular users are identified by an anonymous UUID in a cookie — no personal data.",
+        ? "管理者はJWTトークンでログイン。一般ユーザーは短期の匿名UUIDで重複投票だけを防止し、氏名・連絡先は収集しません。"
+        : "Admins use JWT tokens. A short-lived anonymous UUID only prevents duplicate votes; no name or contact detail is collected.",
     },
     {
       label: ja ? "デプロイ" : "Deployment",

@@ -47,8 +47,7 @@ async function seed() {
     await db.insert(opinions).values({
       categoryId: category.id,
       themeId,
-      problemStatement: "【デモ表示】学生の意見の見え方を確認するためのサンプルです。",
-      transcription: opinionText,
+      body: opinionText,
       approvalStatus: "approved",
       isVisible: true,
       isModerated: false,

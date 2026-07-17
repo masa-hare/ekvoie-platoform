@@ -76,8 +76,7 @@ export default function Opinions({ initialView = "latest" }: { initialView?: Vie
   const OpinionCard = ({ opinion }: { opinion: NonNullable<typeof opinions>[number] }) => (
     <article className="border-4 border-black bg-white p-4 sm:p-5">
       <div className="mb-3 text-xs font-bold text-muted-foreground">#{opinion.id} · {new Date(opinion.createdAt).toLocaleDateString(ja ? "ja-JP" : "en-US")}</div>
-      {opinion.problemStatement && <p className="mb-2 border-l-4 border-black pl-3 font-bold leading-relaxed">{opinion.problemStatement}</p>}
-      <p className="whitespace-pre-wrap leading-relaxed">{opinion.transcription}</p>
+      <p className="whitespace-pre-wrap leading-relaxed">{opinion.body}</p>
       <div className="mt-4 flex gap-5 text-sm font-bold text-muted-foreground" aria-label={ja ? "投票数" : "Vote counts"}>
         <span className="inline-flex items-center gap-1"><ThumbsUp className="size-4" />{opinion.agreeCount}</span>
         <span className="inline-flex items-center gap-1"><ThumbsDown className="size-4" />{opinion.disagreeCount}</span>

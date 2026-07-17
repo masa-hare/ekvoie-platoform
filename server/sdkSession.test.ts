@@ -43,7 +43,7 @@ describe("admin session privacy", () => {
     const user = await sdk.authenticateRequest(req);
     expect(user.role).toBe("admin");
     expect(user.id).toBe(0); // synthetic — never persisted
-    expect(user.email).toBeNull();
+    expect(user).not.toHaveProperty("email");
   });
 
   it("does not let a site-access gate session pass as an authenticated user", async () => {

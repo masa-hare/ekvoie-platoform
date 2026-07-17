@@ -15,8 +15,8 @@ describe("verifySecret — plaintext migration path", () => {
 
   it.each([
     ["wrong value", "correct horse"],
-    ["correct hors", "correct horse"], // prefix
-    ["correct horse ", "correct horse"], // length mismatch
+    ["correct hors", "correct horse"],
+    ["correct horse ", "correct horse"],
   ])("rejects %s against %s", (input, stored) => {
     expect(verifySecret(input, stored, undefined)).toBe(false);
   });
@@ -47,8 +47,6 @@ describe("verifySecret — scrypt hash path", () => {
   });
 
   it("prefers the hash over the plain secret when both are set", () => {
-    // A matching plaintext must NOT win when a (different) hash is configured —
-    // otherwise a stale plain env var would silently weaken the hash migration.
     const hash = makeHash("the-hashed-secret");
     expect(verifySecret("the-plain-secret", "the-plain-secret", hash)).toBe(false);
     expect(verifySecret("the-hashed-secret", "the-plain-secret", hash)).toBe(true);

@@ -64,6 +64,13 @@
       "when": 1784200000000,
       "tag": "0008_themes_two_choice_votes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1784300000000,
+      "tag": "0009_privacy_minimization",
+      "breakpoints": true
     }
   ]
 }

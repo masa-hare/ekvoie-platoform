@@ -1,6 +1,6 @@
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { users, opinions, votes, categories, deletionLogs, themes, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertTheme, InsertUniversityView } from "../drizzle/schema";
+import { anonymousUsers, opinions, votes, categories, deletionLogs, themes, universityViews, InsertOpinion, InsertVote, InsertDeletionLog, InsertTheme, InsertUniversityView } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -17,18 +17,6 @@ export async function getDb() {
 }
 
 
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
 // Opinion queries
 export async function createOpinion(opinion: InsertOpinion) {
   const db = await getDb();
@@ -40,7 +28,7 @@ export async function createOpinion(opinion: InsertOpinion) {
   return { insertId };
 }
 
-export async function getOpinions(filters?: { categoryId?: number; themeId?: number; isVisible?: boolean; userId?: number; approvalStatus?: string; excludeFeedbackCategories?: boolean }) {
+export async function getOpinions(filters?: { categoryId?: number; themeId?: number; isVisible?: boolean; approvalStatus?: string; excludeFeedbackCategories?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -50,7 +38,6 @@ export async function getOpinions(filters?: { categoryId?: number; themeId?: num
   if (filters?.categoryId) conditions.push(eq(opinions.categoryId, filters.categoryId));
   if (filters?.themeId) conditions.push(eq(opinions.themeId, filters.themeId));
   if (filters?.isVisible !== undefined) conditions.push(eq(opinions.isVisible, filters.isVisible));
-  if (filters?.userId) conditions.push(eq(opinions.userId, filters.userId));
   if (filters?.approvalStatus) conditions.push(eq(opinions.approvalStatus, filters.approvalStatus as any));
   if (filters?.excludeFeedbackCategories) {
     conditions.push(
@@ -105,17 +92,6 @@ export async function createVote(vote: InsertVote) {
   if (!db) throw new Error("Database not available");
   
   await db.insert(votes).values(vote);
-}
-
-export async function getUserVote(userId: number, opinionId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.select().from(votes)
-    .where(and(eq(votes.userId, userId), eq(votes.opinionId, opinionId)))
-    .limit(1);
-  
-  return result[0];
 }
 
 export async function getAnonymousUserVote(anonymousUserId: number, opinionId: number) {
@@ -194,6 +170,33 @@ export async function getThemes(categoryId?: number) {
   return categoryId
     ? await query.where(eq(themes.categoryId, categoryId)).orderBy(themes.createdAt)
     : await query.orderBy(themes.createdAt);
+}
+
+/**
+ * Physically removes expired pseudonymous identifiers. Votes and posts remain
+ * only as unlinked aggregate records, so they can no longer be tied to a
+ * browser after the 30-day retention period.
+ */
+export async function purgeExpiredAnonymousData(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { purged: 0 };
+
+  const expired = await db
+    .select({ id: anonymousUsers.id })
+    .from(anonymousUsers)
+    .where(lt(anonymousUsers.expiresAt, now));
+
+  const ids = expired.map(row => row.id);
+  if (!ids.length) return { purged: 0 };
+
+  // No foreign keys are used in this legacy schema, so remove links before
+  // deleting the identifiers themselves.
+  for (const id of ids) {
+    await db.update(opinions).set({ anonymousUserId: null }).where(eq(opinions.anonymousUserId, id));
+    await db.update(votes).set({ anonymousUserId: null }).where(eq(votes.anonymousUserId, id));
+  }
+  await db.delete(anonymousUsers).where(lt(anonymousUsers.expiresAt, now));
+  return { purged: ids.length };
 }
 
 export async function createTheme(theme: InsertTheme) {

@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { getOrCreateAnonymousUser } from "./anonymousAuth";
@@ -10,7 +10,15 @@ import { TRPCError } from "@trpc/server";
 
 import { opinionSubmitLimiter, voteLimiter } from "./rateLimit";
 import { broadcastOpinionChange } from "./sse";
-import { sanitizeInput, scrubPII, checkContent } from "./security";
+import { sanitizeInput, checkContent } from "./security";
+
+const deletionReasons = [
+  "personal_information",
+  "harassment_or_hate",
+  "threat_or_illegal_content",
+  "off_topic_or_spam",
+  "other_policy_violation",
+] as const;
 
 export const appRouter = router({
   system: systemRouter,
@@ -35,8 +43,7 @@ export const appRouter = router({
     createTextOpinion: publicProcedure
       .input(
         z.object({
-          problemStatement: z.string().trim().max(500).optional(),
-          solutionProposal: z.string().trim().min(1).max(500),
+          body: z.string().trim().min(1).max(500),
           categoryId: z.number().int().positive(),
         })
       )
@@ -55,11 +62,10 @@ export const appRouter = router({
         const anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
 
         // Strip HTML tags before storage
-        const cleanProblem = sanitizeInput(input.problemStatement ?? "");
-        const cleanSolution = sanitizeInput(input.solutionProposal);
+        const cleanBody = sanitizeInput(input.body);
 
         // Pre-submission content check
-        const check = checkContent(cleanProblem, cleanSolution);
+        const check = checkContent(cleanBody);
         if (!check.ok) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -69,8 +75,7 @@ export const appRouter = router({
 
         // Create opinion — published immediately (post-moderation model)
         const opinion = await db.createOpinion({
-          problemStatement: cleanProblem,
-          transcription: cleanSolution,
+          body: cleanBody,
           categoryId: input.categoryId,
           anonymousUserId: anonymousUserId,
           approvalStatus: "approved",
@@ -86,7 +91,6 @@ export const appRouter = router({
         z.object({
           categoryId: z.number().optional(),
           themeId: z.number().optional(),
-          userId: z.number().optional(),
           includeFeedback: z.boolean().optional(),
         }).optional()
       )
@@ -94,7 +98,6 @@ export const appRouter = router({
         return await db.getOpinions({
           categoryId: input?.categoryId,
           themeId: input?.themeId,
-          userId: input?.userId,
           isVisible: true,
           approvalStatus: "approved",
           // リスト表示ではフィードバックカテゴリーを除外。カテゴリービューまたは直接指定時は含む
@@ -135,23 +138,14 @@ export const appRouter = router({
           });
         }
 
-        const userId = ctx.user?.id || null;
-        
         // Get or create anonymous user ID for voting (only creates on vote action)
         let anonymousUserId = ctx.anonymousUserId;
-        if (!userId && !anonymousUserId) {
+        if (!anonymousUserId) {
           anonymousUserId = await getOrCreateAnonymousUser(ctx.req, ctx.res);
         }
 
         // Check if user already voted
-        let existingVote = null;
-        if (userId) {
-          // For logged-in users, check by userId
-          existingVote = await db.getUserVote(userId, input.opinionId);
-        } else if (anonymousUserId) {
-          // For anonymous users, check by anonymousUserId
-          existingVote = await db.getAnonymousUserVote(anonymousUserId, input.opinionId);
-        }
+        const existingVote = await db.getAnonymousUserVote(anonymousUserId, input.opinionId);
 
         if (existingVote) {
           // Update existing vote
@@ -159,7 +153,6 @@ export const appRouter = router({
         } else {
           // Create new vote
           await db.createVote({
-            userId,
             anonymousUserId,
             opinionId: input.opinionId,
             voteType: input.voteType,
@@ -183,12 +176,6 @@ export const appRouter = router({
         };
       }),
 
-    // Get user's vote for an opinion
-    getUserVote: protectedProcedure
-      .input(z.object({ opinionId: z.number() }))
-      .query(async ({ ctx, input }) => {
-        return await db.getUserVote(ctx.user.id, input.opinionId);
-      }),
   }),
 
   // Admin procedures
@@ -250,7 +237,7 @@ export const appRouter = router({
       .input(
         z.object({
           opinionId: z.number(),
-          reason: z.string().optional(),
+          reason: z.enum(deletionReasons),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -263,15 +250,10 @@ export const appRouter = router({
           });
         }
 
-        const opinionPreview = scrubPII(
-          (opinion.problemStatement || opinion.transcription || "").slice(0, 50)
-        );
         await db.createDeletionLog({
           postType: "opinion",
           postId: input.opinionId,
-          content: JSON.stringify({ preview: opinionPreview, categoryId: opinion.categoryId }),
-          reason: input.reason || null,
-          deletedBy: ctx.user.id,
+          reason: input.reason,
         });
 
         await db.deleteOpinion(input.opinionId);
@@ -330,7 +312,7 @@ export const appRouter = router({
         const rows = opinions.map(opinion => {
           const categoryName = opinion.categoryId ? categoryMap.get(opinion.categoryId) || "未分類" : "未分類";
           
-          const problemText = (opinion.problemStatement || "").replace(/\r?\n/g, " ");
+          const opinionText = opinion.body.replace(/\r?\n/g, " ");
           // Prevent spreadsheet formula injection when a CSV is opened locally.
           const csvEscape = (s: string) => {
             const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
@@ -338,7 +320,7 @@ export const appRouter = router({
           };
           return [
             opinion.id.toString(),
-            csvEscape(problemText),
+            csvEscape(opinionText),
             csvEscape(categoryName),
             opinion.agreeCount.toString(),
             opinion.disagreeCount.toString(),
@@ -438,7 +420,7 @@ export const appRouter = router({
     list: adminProcedure.query(async () => db.getThemes()),
     create: adminProcedure
       .input(z.object({ categoryId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
-      .mutation(async ({ ctx, input }) => db.createTheme({ ...input, createdBy: ctx.user.id })),
+      .mutation(async ({ input }) => db.createTheme(input)),
     update: adminProcedure
       .input(z.object({ id: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
       .mutation(async ({ input }) => { await db.updateTheme(input.id, { title: input.title }); return { success: true }; }),

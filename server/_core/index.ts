@@ -18,7 +18,7 @@ import { renderSiteAccessPage } from "./siteAccessPage";
 import { validateEnv } from "./env";
 import { addSseClient } from "../sse";
 import { migrate } from "drizzle-orm/mysql2/migrator";
-import { getDb } from "../db";
+import { getDb, purgeExpiredAnonymousData } from "../db";
 import path from "path";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -54,6 +54,21 @@ async function startServer() {
       console.error("[DB] Migration error (continuing):", err);
     }
   }
+
+  // Anonymous IDs are only needed for short-term duplicate-vote prevention.
+  // Run once at boot and daily thereafter so expired identifiers do not remain
+  // in the database indefinitely.
+  const purgeAnonymousData = async () => {
+    try {
+      const result = await purgeExpiredAnonymousData();
+      if (result.purged) console.log(`[Privacy] Purged ${result.purged} expired anonymous identifiers`);
+    } catch (err) {
+      console.error("[Privacy] Anonymous identifier purge failed:", err);
+    }
+  };
+  await purgeAnonymousData();
+  const privacyPurgeTimer = setInterval(() => void purgeAnonymousData(), 24 * 60 * 60 * 1000);
+  privacyPurgeTimer.unref();
 
   const app = express();
   const server = createServer(app);

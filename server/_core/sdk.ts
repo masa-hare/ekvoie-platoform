@@ -3,10 +3,9 @@ import { ForbiddenError } from "@shared/_core/errors";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
-import type { User } from "../../drizzle/schema";
-import * as db from "../db";
 import { ENV } from "./env";
 import { ADMIN_OPEN_ID } from "../adminAuth";
+import type { AuthenticatedUser } from "./context";
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
@@ -95,7 +94,7 @@ class SDKServer {
     }
   }
 
-  async authenticateRequest(req: Request): Promise<User> {
+  async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
     const session = await this.verifySession(sessionCookie);
@@ -106,25 +105,10 @@ class SDKServer {
 
     // Admin: synthetic user, no DB lookup, no personal info stored
     if (session.openId === ADMIN_OPEN_ID) {
-      return {
-        id: 0,
-        openId: ADMIN_OPEN_ID,
-        role: "admin",
-        name: "Administrator",
-        email: null,
-        loginMethod: "password",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastSignedIn: new Date(),
-      } as User;
+      return { id: 0, role: "admin" };
     }
 
-    const user = await db.getUserByOpenId(session.openId);
-    if (!user) {
-      throw ForbiddenError("User not found");
-    }
-
-    return user;
+    throw ForbiddenError("Unsupported session");
   }
 }
 
